@@ -47,8 +47,6 @@ namespace OxyPlot.Axes
 
             angleAxis.UpdateActualMaxMin();
 
-            var majorTicks = this.MajorTickValues.Where(x => x > axis.ActualMinimum && x <= axis.ActualMaximum).ToArray();
-
             if (pass == 0 && this.ExtraPen != null)
             {
                 var extraTicks = axis.ExtraGridlines;
@@ -63,9 +61,7 @@ namespace OxyPlot.Axes
 
             if (pass == 0 && this.MinorPen != null)
             {
-                var minorTicks = this.MinorTickValues.Where(x => x >= axis.ActualMinimum && x <= axis.ActualMaximum && !majorTicks.Contains(x)).ToArray();
-
-                foreach (var tickValue in minorTicks)
+                foreach (var tickValue in this.MinorTickValues)
                 {
                     this.RenderTick(axis, angleAxis, tickValue, this.MinorPen);
                 }
@@ -73,7 +69,7 @@ namespace OxyPlot.Axes
 
             if (pass == 0 && this.MajorPen != null)
             {
-                foreach (var tickValue in majorTicks)
+                foreach (var tickValue in this.MajorTickValues)
                 {
                     this.RenderTick(axis, angleAxis, tickValue, this.MajorPen);
                 }
@@ -81,7 +77,7 @@ namespace OxyPlot.Axes
 
             if (pass == 1)
             {
-                foreach (double tickValue in majorTicks)
+                foreach (var tickValue in this.MajorTickValues)
                 {
                     this.RenderTickText(axis, tickValue, angleAxis);
                 }
@@ -162,7 +158,7 @@ namespace OxyPlot.Axes
         private void RenderTickCircle(Axis axis, Axis angleAxis, double x, OxyPen pen)
         {
             var zero = angleAxis.Offset;
-            var center = axis.Transform(axis.ActualMinimum, zero, angleAxis);
+            var center = axis.Transform(axis.ClipMinimum, zero, angleAxis);
             var right = axis.Transform(x, zero, angleAxis).X;
             var radius = right - center.X;
             var width = radius * 2;
@@ -170,7 +166,7 @@ namespace OxyPlot.Axes
             var top = center.Y - radius;
             var height = width;
 
-            this.RenderContext.DrawEllipse(new OxyRect(left, top, width, height), OxyColors.Undefined, pen.Color, pen.Thickness);
+            this.RenderContext.DrawEllipse(new OxyRect(left, top, width, height), OxyColors.Undefined, pen.Color, pen.Thickness, axis.EdgeRenderingMode);
         }
 
         /// <summary>
@@ -183,8 +179,8 @@ namespace OxyPlot.Axes
         private void RenderTickArc(Axis axis, AngleAxis angleAxis, double x, OxyPen pen)
         {
             // caution: make sure angleAxis.UpdateActualMaxMin(); has been called
-            var minAngle = angleAxis.ActualMinimum;
-            var maxAngle = angleAxis.ActualMaximum;
+            var minAngle = angleAxis.ClipMinimum;
+            var maxAngle = angleAxis.ClipMaximum;
 
             // number of segment to draw a full circle
             // - decrease if you want get more speed
@@ -205,7 +201,7 @@ namespace OxyPlot.Axes
                 points.Add(axis.Transform(x, angle, angleAxis));
             }
 
-            this.RenderContext.DrawLine(points, pen.Color, pen.Thickness, pen.ActualDashArray);
+            this.RenderContext.DrawLine(points, pen.Color, pen.Thickness, axis.EdgeRenderingMode, pen.ActualDashArray);
         }
 
         /// <summary>

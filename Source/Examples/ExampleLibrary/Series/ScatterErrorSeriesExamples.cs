@@ -15,11 +15,13 @@ namespace ExampleLibrary
 
     using OxyPlot;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("ScatterErrorSeries"), Tags("Series")]
     public class ScatterErrorSeriesExamples
     {
         [Example("Random points and errors (n=20)")]
+        [DocumentationExample("Series/ScatterErrorSeries")]
         public static PlotModel RandomPointsAndError20()
         {
             return RandomPointsAndError(20);
@@ -35,7 +37,13 @@ namespace ExampleLibrary
         public static PlotModel ItemsSourceMapping()
         {
             const int N = 20;
-            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource and Mapping", Subtitle = string.Format("Random data (n={0})", N), LegendPosition = LegendPosition.LeftTop };
+            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource and Mapping", Subtitle = string.Format("Random data (n={0})", N) };
+            var l = new Legend
+            {
+                LegendPosition = LegendPosition.LeftTop
+            };
+
+            model.Legends.Add(l);
             model.Series.Add(new ScatterErrorSeries
             {
                 Title = "Measurements",
@@ -54,7 +62,14 @@ namespace ExampleLibrary
         public static PlotModel ItemsSourceList()
         {
             const int N = 20;
-            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource (List)", Subtitle = string.Format("Random data (n={0})", N), LegendPosition = LegendPosition.LeftTop };
+            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource (List)", Subtitle = string.Format("Random data (n={0})", N) };
+            var l = new Legend
+            {
+                LegendPosition = LegendPosition.LeftTop
+            };
+
+            model.Legends.Add(l);
+
             model.Series.Add(new ScatterErrorSeries { Title = "Measurements", ItemsSource = CreateScatterErrorPoints(N).ToList() });
             return model;
         }
@@ -63,7 +78,13 @@ namespace ExampleLibrary
         public static PlotModel ItemsSourceEnumerable()
         {
             const int N = 20;
-            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource (IEnumerable)", Subtitle = string.Format("Random data (n={0})", N), LegendPosition = LegendPosition.LeftTop };
+            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource (IEnumerable)", Subtitle = string.Format("Random data (n={0})", N) };
+            var l = new Legend
+            {
+                LegendPosition = LegendPosition.LeftTop
+            };
+
+            model.Legends.Add(l);
             model.Series.Add(new ScatterErrorSeries { Title = "Measurements", ItemsSource = CreateScatterErrorPoints(N).ToArray() });
             return model;
         }
@@ -72,7 +93,13 @@ namespace ExampleLibrary
         public static PlotModel ItemsSourceReflection()
         {
             const int N = 20;
-            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource (reflection)", Subtitle = string.Format("Random data (n={0})", N), LegendPosition = LegendPosition.LeftTop };
+            var model = new PlotModel { Title = "ScatterErrorSeries, points defined by ItemsSource (reflection)", Subtitle = string.Format("Random data (n={0})", N) };
+            var l = new Legend
+            {
+                LegendPosition = LegendPosition.LeftTop
+            };
+
+            model.Legends.Add(l);
             model.Series.Add(new ScatterErrorSeries
             {
                 Title = "Measurements",
@@ -92,8 +119,13 @@ namespace ExampleLibrary
         /// <returns>A plot model.</returns>
         private static PlotModel RandomPointsAndError(int n)
         {
-            var model = new PlotModel { Title = "ScatterErrorSeries", Subtitle = string.Format("Random data (n={0})", n), LegendPosition = LegendPosition.LeftTop };
+            var model = new PlotModel { Title = "ScatterErrorSeries", Subtitle = string.Format("Random data (n={0})", n) };
+            var l = new Legend
+            {
+                LegendPosition = LegendPosition.LeftTop
+            };
 
+            model.Legends.Add(l);
             var s1 = new ScatterErrorSeries { Title = "Measurements" };
             s1.Points.AddRange(CreateScatterErrorPoints(n));
             model.Series.Add(s1);

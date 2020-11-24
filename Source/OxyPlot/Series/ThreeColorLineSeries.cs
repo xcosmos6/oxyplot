@@ -9,6 +9,7 @@
 
 namespace OxyPlot.Series
 {
+    using System;
     using System.Collections.Generic;
 
     /// <summary>
@@ -181,84 +182,55 @@ namespace OxyPlot.Series
             }
         }
 
-        /// <summary>
-        /// Renders the smoothed line.
-        /// </summary>
-        /// <param name="rc">The render context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
-        /// <param name="pointsToRender">The points.</param>
-        protected override void RenderLine(IRenderContext rc, OxyRect clippingRect, IList<ScreenPoint> pointsToRender)
+        /// <inheritdoc/>
+        protected override void RenderLine(IRenderContext rc, IList<ScreenPoint> pointsToRender)
         {
-            var bottom = clippingRect.Bottom;
-            var top = clippingRect.Top;
+            var clippingRect = this.GetClippingRect();
+            var p1 = this.InverseTransform(clippingRect.BottomLeft);
+            var p2 = this.InverseTransform(clippingRect.TopRight);
 
-            // todo: this does not work when y axis is reversed
-            var yLo = this.YAxis.Transform(this.LimitLo);
-            var yHi = this.YAxis.Transform(this.LimitHi);
+            var clippingRectLo = new OxyRect(
+                this.Transform(p1.X, Math.Min(p1.Y, p2.Y)),
+                this.Transform(p2.X, this.LimitLo)).Clip(clippingRect);
 
-            if (yLo < clippingRect.Top)
+            var clippingRectMid = new OxyRect(
+                this.Transform(p1.X, this.LimitLo),
+                this.Transform(p2.X, this.LimitHi)).Clip(clippingRect);
+
+            var clippingRectHi = new OxyRect(
+                this.Transform(p1.X, Math.Max(p1.Y, p2.Y)),
+                this.Transform(p2.X, this.LimitHi)).Clip(clippingRect);
+
+            if (this.StrokeThickness <= 0 || this.ActualLineStyle == LineStyle.None)
             {
-                yLo = clippingRect.Top;
+                return;
             }
 
-            if (yLo > clippingRect.Bottom)
+            void RenderLine(OxyColor color)
             {
-                yLo = clippingRect.Bottom;
-            }
-
-            if (yHi < clippingRect.Top)
-            {
-                yHi = clippingRect.Top;
-            }
-
-            if (yHi > clippingRect.Bottom)
-            {
-                yHi = clippingRect.Bottom;
-            }
-
-            if (this.StrokeThickness > 0 && this.ActualLineStyle != LineStyle.None)
-            {
-                clippingRect = new OxyRect(clippingRect.Left, yHi, clippingRect.Width, yLo - yHi);
-
-                rc.DrawClippedLine(
-                    clippingRect,
+                rc.DrawReducedLine(
                     pointsToRender,
                     this.MinimumSegmentLength * this.MinimumSegmentLength,
-                    this.GetSelectableColor(this.ActualColor),
+                    this.GetSelectableColor(color),
                     this.StrokeThickness,
+                    this.EdgeRenderingMode,
                     this.ActualDashArray,
-                    this.LineJoin,
-                    false);
+                    this.LineJoin);
             }
 
-            if (this.StrokeThickness > 0 && this.ActualLineStyleLo != LineStyle.None)
+            using (rc.AutoResetClip(clippingRectMid))
             {
-                clippingRect = new OxyRect(clippingRect.Left, yLo, clippingRect.Width, bottom - yLo);
-
-                rc.DrawClippedLine(
-                    clippingRect,
-                    pointsToRender,
-                    this.MinimumSegmentLength * this.MinimumSegmentLength,
-                    this.GetSelectableColor(this.ActualColorLo),
-                    this.StrokeThickness,
-                    this.ActualDashArrayLo,
-                    this.LineJoin,
-                    false);
+                RenderLine(this.ActualColor);
             }
 
-            if (this.StrokeThickness > 0 && this.ActualLineStyleHi != LineStyle.None)
+            using (rc.AutoResetClip(clippingRectLo))
             {
-                clippingRect = new OxyRect(clippingRect.Left, top, clippingRect.Width, yHi - top);
+                RenderLine(this.ActualColorLo);
+            }
 
-                rc.DrawClippedLine(
-                    clippingRect,
-                    pointsToRender,
-                    this.MinimumSegmentLength * this.MinimumSegmentLength,
-                    this.GetSelectableColor(this.ActualColorHi),
-                    this.StrokeThickness,
-                    this.ActualDashArrayHi,
-                    this.LineJoin,
-                    false);
+            using (rc.AutoResetClip(clippingRectHi))
+            {
+                RenderLine(this.ActualColorHi);
             }
         }
     }

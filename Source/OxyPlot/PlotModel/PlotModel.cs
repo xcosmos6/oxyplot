@@ -16,6 +16,7 @@ namespace OxyPlot
 
     using OxyPlot.Annotations;
     using OxyPlot.Axes;
+    using OxyPlot.Legends;
     using OxyPlot.Series;
 
     /// <summary>
@@ -42,136 +43,6 @@ namespace OxyPlot
     }
 
     /// <summary>
-    /// Specifies the placement of the legend box.
-    /// </summary>
-    public enum LegendPlacement
-    {
-        /// <summary>
-        /// Place the legends inside the plot area.
-        /// </summary>
-        Inside,
-
-        /// <summary>
-        /// Place the legends outside the plot area.
-        /// </summary>
-        Outside
-    }
-
-    /// <summary>
-    /// Specifies the position of the legend box.
-    /// </summary>
-    public enum LegendPosition
-    {
-        /// <summary>
-        /// Place the legend box in the top-left corner.
-        /// </summary>
-        TopLeft,
-
-        /// <summary>
-        /// Place the legend box centered at the top.
-        /// </summary>
-        TopCenter,
-
-        /// <summary>
-        /// Place the legend box in the top-right corner.
-        /// </summary>
-        TopRight,
-
-        /// <summary>
-        /// Place the legend box in the bottom-left corner.
-        /// </summary>
-        BottomLeft,
-
-        /// <summary>
-        /// Place the legend box centered at the bottom.
-        /// </summary>
-        BottomCenter,
-
-        /// <summary>
-        /// Place the legend box in the bottom-right corner.
-        /// </summary>
-        BottomRight,
-
-        /// <summary>
-        /// Place the legend box in the left-top corner.
-        /// </summary>
-        LeftTop,
-
-        /// <summary>
-        /// Place the legend box centered at the left.
-        /// </summary>
-        LeftMiddle,
-
-        /// <summary>
-        /// Place the legend box in the left-bottom corner.
-        /// </summary>
-        LeftBottom,
-
-        /// <summary>
-        /// Place the legend box in the right-top corner.
-        /// </summary>
-        RightTop,
-
-        /// <summary>
-        /// Place the legend box centered at the right.
-        /// </summary>
-        RightMiddle,
-
-        /// <summary>
-        /// Place the legend box in the right-bottom corner.
-        /// </summary>
-        RightBottom
-    }
-
-    /// <summary>
-    /// Specifies the orientation of the items in the legend box.
-    /// </summary>
-    public enum LegendOrientation
-    {
-        /// <summary>
-        /// Orient the items horizontally.
-        /// </summary>
-        Horizontal,
-
-        /// <summary>
-        /// Orient the items vertically.
-        /// </summary>
-        Vertical
-    }
-
-    /// <summary>
-    /// Specifies the item order of the legends.
-    /// </summary>
-    public enum LegendItemOrder
-    {
-        /// <summary>
-        /// Render the items in the normal order.
-        /// </summary>
-        Normal,
-
-        /// <summary>
-        /// Render the items in the reverse order.
-        /// </summary>
-        Reverse
-    }
-
-    /// <summary>
-    /// Specifies the placement of the legend symbols.
-    /// </summary>
-    public enum LegendSymbolPlacement
-    {
-        /// <summary>
-        /// Render symbols to the left of the labels.
-        /// </summary>
-        Left,
-
-        /// <summary>
-        /// Render symbols to the right of the labels.
-        /// </summary>
-        Right
-    }
-
-    /// <summary>
     /// Specifies the horizontal alignment of the titles.
     /// </summary>
     public enum TitleHorizontalAlignment
@@ -192,6 +63,11 @@ namespace OxyPlot
     /// </summary>
     public partial class PlotModel : Model, IPlotModel
     {
+        /// <summary>
+        /// The bar series managers.
+        /// </summary>
+        private readonly List<BarSeriesManager> barSeriesManagers = new List<BarSeriesManager>();
+
         /// <summary>
         /// The plot view that renders this plot.
         /// </summary>
@@ -221,7 +97,7 @@ namespace OxyPlot
             this.Axes = new ElementCollection<Axis>(this);
             this.Series = new ElementCollection<Series.Series>(this);
             this.Annotations = new ElementCollection<Annotation>(this);
-
+            this.Legends = new ElementCollection<LegendBase>(this);
             this.PlotType = PlotType.XY;
 
             this.PlotMargins = new OxyThickness(double.NaN);
@@ -245,40 +121,15 @@ namespace OxyPlot
             this.SubtitleFontSize = 14;
             this.SubtitleFontWeight = FontWeights.Normal;
             this.TitlePadding = 6;
+            this.ClipTitle = true;
+            this.TitleClippingLength = 0.9;
 
             this.PlotAreaBorderColor = OxyColors.Black;
             this.PlotAreaBorderThickness = new OxyThickness(1);
+            this.EdgeRenderingMode = EdgeRenderingMode.Automatic;
 
+            this.AssignColorsToInvisibleSeries = true;
             this.IsLegendVisible = true;
-            this.LegendTitleFont = null;
-            this.LegendTitleFontSize = 12;
-            this.LegendTitleFontWeight = FontWeights.Bold;
-            this.LegendFont = null;
-            this.LegendFontSize = 12;
-            this.LegendFontWeight = FontWeights.Normal;
-            this.LegendSymbolLength = 16;
-            this.LegendSymbolMargin = 4;
-            this.LegendPadding = 8;
-            this.LegendColumnSpacing = 8;
-            this.LegendItemSpacing = 24;
-            this.LegendLineSpacing = 0;
-            this.LegendMargin = 8;
-
-            this.LegendBackground = OxyColors.Undefined;
-            this.LegendBorder = OxyColors.Undefined;
-            this.LegendBorderThickness = 1;
-
-            this.LegendTextColor = OxyColors.Automatic;
-            this.LegendTitleColor = OxyColors.Automatic;
-
-            this.LegendMaxWidth = double.NaN;
-            this.LegendMaxHeight = double.NaN;
-            this.LegendPlacement = LegendPlacement.Inside;
-            this.LegendPosition = LegendPosition.RightTop;
-            this.LegendOrientation = LegendOrientation.Vertical;
-            this.LegendItemOrder = LegendItemOrder.Normal;
-            this.LegendItemAlignment = HorizontalAlignment.Left;
-            this.LegendSymbolPlacement = LegendSymbolPlacement.Left;
 
             this.DefaultColors = new List<OxyColor>
             {
@@ -301,16 +152,19 @@ namespace OxyPlot
         /// <summary>
         /// Occurs when the tracker has been changed.
         /// </summary>
+        [Obsolete("May be removed in v4.0 (#111)")]
         public event EventHandler<TrackerEventArgs> TrackerChanged;
 
         /// <summary>
         /// Occurs when the plot has been updated.
         /// </summary>
+        [Obsolete("May be removed in v4.0 (#111)")]
         public event EventHandler Updated;
 
         /// <summary>
         /// Occurs when the plot is about to be updated.
         /// </summary>
+        [Obsolete("May be removed in v4.0 (#111)")]
         public event EventHandler Updating;
 
         /// <summary>
@@ -369,10 +223,16 @@ namespace OxyPlot
         public ElementCollection<Axis> Axes { get; private set; }
 
         /// <summary>
+        /// Gets or sets the legends.
+        /// </summary>
+        /// <value>The legends.</value>
+        public ElementCollection<LegendBase> Legends { get; set; }
+
+        /// <summary>
         /// Gets or sets the color of the background of the plot.
         /// </summary>
         /// <value>The color. The default is <see cref="OxyColors.Undefined" />.</value>
-        /// <remarks>If the background color is set to <see cref="OxyColors.Undefined" />, the default color of the plot view will be used.</remarks>
+        /// <remarks>If the background color is set to <see cref="OxyColors.Undefined" /> or is otherwise invisible then the background will be determined by the plot view or exporter.</remarks>
         public OxyColor Background { get; set; }
 
         /// <summary>
@@ -388,178 +248,20 @@ namespace OxyPlot
         public IList<OxyColor> DefaultColors { get; set; }
 
         /// <summary>
+        /// Gets or sets the edge rendering mode that is used for rendering the plot bounds and backgrounds.
+        /// </summary>
+        /// <value>The edge rendering mode. The default is <see cref="EdgeRenderingMode.Automatic"/>.</value>
+        public EdgeRenderingMode EdgeRenderingMode { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether invisible series should be assigned automatic colors.
+        /// </summary>
+        public bool AssignColorsToInvisibleSeries { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether the legend is visible. The titles of the series must be set to use the legend.
         /// </summary>
         public bool IsLegendVisible { get; set; }
-
-        /// <summary>
-        /// Gets the legend area.
-        /// </summary>
-        /// <value>The legend area.</value>
-        public OxyRect LegendArea { get; private set; }
-
-        /// <summary>
-        /// Gets or sets the background color of the legend. Use <c>null</c> for no background.
-        /// </summary>
-        /// <value>The legend background.</value>
-        public OxyColor LegendBackground { get; set; }
-
-        /// <summary>
-        /// Gets or sets the border color of the legend.
-        /// </summary>
-        /// <value>The legend border.</value>
-        public OxyColor LegendBorder { get; set; }
-
-        /// <summary>
-        /// Gets or sets the thickness of the legend border. Use 0 for no border.
-        /// </summary>
-        /// <value>The legend border thickness.</value>
-        public double LegendBorderThickness { get; set; }
-
-        /// <summary>
-        /// Gets or sets the spacing between columns of legend items (only for vertical orientation).
-        /// </summary>
-        /// <value>The spacing in device independent units.</value>
-        public double LegendColumnSpacing { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend font.
-        /// </summary>
-        /// <value>The legend font.</value>
-        public string LegendFont { get; set; }
-
-        /// <summary>
-        /// Gets or sets the size of the legend font.
-        /// </summary>
-        /// <value>The size of the legend font.</value>
-        public double LegendFontSize { get; set; }
-
-        /// <summary>
-        /// Gets or sets the color of the legend text.
-        /// </summary>
-        /// <value>The color of the legend text.</value>
-        /// <remarks>If this value is <c>null</c>, the TextColor will be used.</remarks>
-        public OxyColor LegendTextColor { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend font weight.
-        /// </summary>
-        /// <value>The legend font weight.</value>
-        public double LegendFontWeight { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend item alignment.
-        /// </summary>
-        /// <value>The legend item alignment.</value>
-        public HorizontalAlignment LegendItemAlignment { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend item order.
-        /// </summary>
-        /// <value>The legend item order.</value>
-        public LegendItemOrder LegendItemOrder { get; set; }
-
-        /// <summary>
-        /// Gets or sets the horizontal spacing between legend items when the orientation is horizontal.
-        /// </summary>
-        /// <value>The horizontal distance between items in device independent units.</value>
-        public double LegendItemSpacing { get; set; }
-
-        /// <summary>
-        /// Gets or sets the vertical spacing between legend items.
-        /// </summary>
-        /// <value>The spacing in device independent units.</value>
-        public double LegendLineSpacing { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend margin.
-        /// </summary>
-        /// <value>The legend margin.</value>
-        public double LegendMargin { get; set; }
-
-        /// <summary>
-        /// Gets or sets the max width of the legend.
-        /// </summary>
-        /// <value>The max width of the legend.</value>
-        public double LegendMaxWidth { get; set; }
-
-        /// <summary>
-        /// Gets or sets the max height of the legend.
-        /// </summary>
-        /// <value>The max height of the legend.</value>
-        public double LegendMaxHeight { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend orientation.
-        /// </summary>
-        /// <value>The legend orientation.</value>
-        public LegendOrientation LegendOrientation { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend padding.
-        /// </summary>
-        /// <value>The legend padding.</value>
-        public double LegendPadding { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend placement.
-        /// </summary>
-        /// <value>The legend placement.</value>
-        public LegendPlacement LegendPlacement { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend position.
-        /// </summary>
-        /// <value>The legend position.</value>
-        public LegendPosition LegendPosition { get; set; }
-
-        /// <summary>
-        /// Gets or sets the length of the legend symbols (the default value is 16).
-        /// </summary>
-        public double LegendSymbolLength { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend symbol margins (distance between the symbol and the text).
-        /// </summary>
-        /// <value>The legend symbol margin.</value>
-        public double LegendSymbolMargin { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend symbol placement.
-        /// </summary>
-        /// <value>The legend symbol placement.</value>
-        public LegendSymbolPlacement LegendSymbolPlacement { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend title.
-        /// </summary>
-        /// <value>The legend title.</value>
-        public string LegendTitle { get; set; }
-
-        /// <summary>
-        /// Gets or sets the color of the legend title.
-        /// </summary>
-        /// <value>The color of the legend title.</value>
-        /// <remarks>If this value is <c>null</c>, the TextColor will be used.</remarks>
-        public OxyColor LegendTitleColor { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend title font.
-        /// </summary>
-        /// <value>The legend title font.</value>
-        public string LegendTitleFont { get; set; }
-
-        /// <summary>
-        /// Gets or sets the size of the legend title font.
-        /// </summary>
-        /// <value>The size of the legend title font.</value>
-        public double LegendTitleFontSize { get; set; }
-
-        /// <summary>
-        /// Gets or sets the legend title font weight.
-        /// </summary>
-        /// <value>The legend title font weight.</value>
-        public double LegendTitleFontWeight { get; set; }
 
         /// <summary>
         /// Gets or sets the padding around the plot.
@@ -568,14 +270,19 @@ namespace OxyPlot
         public OxyThickness Padding { get; set; }
 
         /// <summary>
+        /// Gets the PlotBounds of the plot (in device units).
+        /// </summary>
+        public OxyRect PlotBounds { get; private set; }
+
+        /// <summary>
         /// Gets the total width of the plot (in device units).
         /// </summary>
-        public double Width { get; private set; }
+        public double Width => this.PlotBounds.Width;
 
         /// <summary>
         /// Gets the total height of the plot (in device units).
         /// </summary>
-        public double Height { get; private set; }
+        public double Height => this.PlotBounds.Height;
 
         /// <summary>
         /// Gets the area including both the plot and the axes. Outside legends are rendered outside this rectangle.
@@ -685,6 +392,16 @@ namespace OxyPlot
         /// <value>The color of the title.</value>
         /// <remarks>If the value is <c>null</c>, the TextColor will be used.</remarks>
         public OxyColor TitleColor { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to clip the title. The default value is <c>true</c>.
+        /// </summary>
+        public bool ClipTitle { get; set; }
+
+        /// <summary>
+        /// Gets or sets the length of the title clipping rectangle (fraction of the available length of the title area). The default value is <c>0.9</c>.
+        /// </summary>
+        public double TitleClippingLength { get; set; }
 
         /// <summary>
         /// Gets or sets the color of the subtitle.
@@ -856,7 +573,7 @@ namespace OxyPlot
 
             foreach (var axis in this.Axes)
             {
-                if(!axis.IsAxisVisible)
+                if (!axis.IsAxisVisible)
                 {
                     continue;
                 }
@@ -889,7 +606,7 @@ namespace OxyPlot
                     x = axis.InverseTransform(pt.Y);
                 }
 
-                if (x >= axis.ActualMinimum && x <= axis.ActualMaximum)
+                if (x >= axis.ClipMinimum && x <= axis.ClipMaximum)
                 {
                     if (position == null)
                     {
@@ -1016,6 +733,27 @@ namespace OxyPlot
         }
 
         /// <summary>
+        /// Gets the legend for the specified key.
+        /// </summary>
+        /// <param name="key">The legend key.</param>
+        /// <returns>The legend that corresponds with the key.</returns>
+        /// <exception cref="System.InvalidOperationException">Cannot find legend with the specified key.</exception>
+        public LegendBase GetLegend(string key)
+        {
+            if (key == null)
+            {
+                throw new ArgumentException("Axis key cannot be null.");
+            }
+
+            var legend = this.Legends.FirstOrDefault(l => l.Key == key);
+            if (legend == null)
+            {
+                throw new InvalidOperationException($"Cannot find legend with Key = \"{key}\"");
+            }
+            return legend;
+        }
+
+        /// <summary>
         /// Gets any exception thrown during the last <see cref="IPlotModel.Update" /> call.
         /// </summary>
         /// <returns>The exception or <c>null</c> if there was no exception.</returns>
@@ -1044,7 +782,7 @@ namespace OxyPlot
                     // Updates the default axes
                     this.EnsureDefaultAxes();
 
-                    var visibleSeries = this.Series.Where(s => s.IsVisible).ToArray();
+                    var visibleSeries = this.Series.Where(s => s.IsVisible).ToList();
 
                     // Update data of the series
                     if (updateData || !this.isDataUpdated)
@@ -1057,30 +795,18 @@ namespace OxyPlot
                         this.isDataUpdated = true;
                     }
 
-                    // Updates axes with information from the series
-                    // This is used by the category axis that need to know the number of series using the axis.
-                    foreach (var a in this.Axes)
-                    {
-                        a.UpdateFromSeries(visibleSeries);
-                        a.ResetCurrentValues();
-                    }
-
-                    // Update valid data of the series
-                    // This must be done after the axes are updated from series!
-                    if (updateData)
-                    {
-                        foreach (var s in visibleSeries)
-                        {
-                            s.UpdateValidData();
-                        }
-                    }
+                    this.UpdateBarSeriesManagers();
 
                     // Update the max and min of the axes
                     this.UpdateMaxMin(updateData);
 
                     // Update undefined colors
+                    var automaticColorSeries = this.AssignColorsToInvisibleSeries
+                        ? (IEnumerable<Series.Series>)this.Series
+                        : visibleSeries;
+
                     this.ResetDefaultColor();
-                    foreach (var s in visibleSeries)
+                    foreach (var s in automaticColorSeries)
                     {
                         s.SetDefaultValues();
                     }
@@ -1125,7 +851,7 @@ namespace OxyPlot
         {
             if (key != null)
             {
-                var axis = this.Axes.FirstOrDefault(a => a.Key == key);                
+                var axis = this.Axes.FirstOrDefault(a => a.Key == key);
                 return axis != null ? axis : defaultAxis;
             }
 
@@ -1230,6 +956,11 @@ namespace OxyPlot
             foreach (var annotation in this.Annotations.Reverse().Where(a => a.Layer == AnnotationLayer.BelowAxes))
             {
                 yield return annotation;
+            }
+
+            foreach (var legend in this.Legends)
+            {
+                yield return legend;
             }
         }
 
@@ -1348,15 +1079,8 @@ namespace OxyPlot
                 bool createdlinearyaxis = false;
                 if (this.DefaultXAxis == null)
                 {
-                    if (this.Series.Any(s => s.IsVisible && s is ColumnSeries))
-                    {
-                        this.DefaultXAxis = new CategoryAxis { Position = AxisPosition.Bottom };
-                    }
-                    else
-                    {
-                        this.DefaultXAxis = new LinearAxis { Position = AxisPosition.Bottom };
-                        createdlinearxaxis = true;
-                    }
+                    this.DefaultXAxis = new LinearAxis { Position = AxisPosition.Bottom };
+                    createdlinearxaxis = true;
                 }
 
                 if (this.DefaultYAxis == null)
@@ -1458,6 +1182,25 @@ namespace OxyPlot
             foreach (var a in this.Axes)
             {
                 a.UpdateActualMaxMin();
+            }
+        }
+
+        /// <summary>
+        /// Updates the bar series managers.
+        /// </summary>
+        private void UpdateBarSeriesManagers()
+        {
+            this.barSeriesManagers.Clear();
+            var barSeriesGroups = this.Series
+                .Where(s => s.IsVisible)
+                .OfType<IBarSeries>()
+                .GroupBy(s => new { s.CategoryAxis, s.ValueAxis });
+
+            foreach (var group in barSeriesGroups)
+            {
+                var manager = new BarSeriesManager(group.Key.CategoryAxis, group.Key.ValueAxis, group);
+                manager.Update();
+                this.barSeriesManagers.Add(manager);
             }
         }
     }

@@ -9,22 +9,30 @@ namespace ExampleLibrary
     using OxyPlot;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("IntervalBarSeries"), Tags("Series")]
     public static class IntervalBarSeriesExamples
     {
         [Example("IntervalBarSeries")]
+        [DocumentationExample("Series/IntervalBarSeries")]
         public static PlotModel IntervalBarSeries()
         {
-            var model = new PlotModel { Title = "IntervalBarSeries", LegendPlacement = LegendPlacement.Outside };
+            var model = new PlotModel { Title = "IntervalBarSeries" };
+            var l = new Legend
+            {
+                LegendPlacement = LegendPlacement.Outside
+            };
 
-            var s1 = new IntervalBarSeries { Title = "IntervalBarSeries 1" };
+            model.Legends.Add(l);
+
+            var s1 = new IntervalBarSeries { Title = "IntervalBarSeries 1", LabelFormatString = "{0} - {1}"};
             s1.Items.Add(new IntervalBarItem { Start = 6, End = 8 });
             s1.Items.Add(new IntervalBarItem { Start = 4, End = 8 });
             s1.Items.Add(new IntervalBarItem { Start = 5, End = 11 });
             s1.Items.Add(new IntervalBarItem { Start = 4, End = 12 });
             model.Series.Add(s1);
-            var s2 = new IntervalBarSeries { Title = "IntervalBarSeries 2" };
+            var s2 = new IntervalBarSeries { Title = "IntervalBarSeries 2", LabelFormatString = "{0} - {1}" };
             s2.Items.Add(new IntervalBarItem { Start = 8, End = 9 });
             s2.Items.Add(new IntervalBarItem { Start = 8, End = 10 });
             s2.Items.Add(new IntervalBarItem { Start = 11, End = 12 });

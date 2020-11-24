@@ -8,9 +8,12 @@ namespace ExampleLibrary
 {
     using System;
 
+    using ExampleLibrary.Utilities;
+
     using OxyPlot;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("HighLowSeries"), Tags("Series")]
     public static class HighLowSeriesExamples
@@ -18,7 +21,14 @@ namespace ExampleLibrary
         [Example("HighLowSeries")]
         public static PlotModel HighLowSeries()
         {
-            var model = new PlotModel { Title = "HighLowSeries", LegendSymbolLength = 24 };
+            var model = new PlotModel { Title = "HighLowSeries" };
+            var l = new Legend
+            {
+                LegendSymbolLength = 24
+            };
+
+            model.Legends.Add(l);
+
             var s1 = new HighLowSeries { Title = "HighLowSeries 1", Color = OxyColors.Black, };
             var r = new Random(314);
             var price = 100.0;
@@ -36,6 +46,12 @@ namespace ExampleLibrary
             model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, MaximumPadding = 0.3, MinimumPadding = 0.3 });
 
             return model;
+        }
+
+        [Example("HighLowSeries (reversed X Axis)")]
+        public static PlotModel HighLowSeriesReversedXAxis()
+        {
+            return HighLowSeries().ReverseXAxis();
         }
 
         [Example("HighLowSeries (DateTime axis)")]

@@ -47,12 +47,37 @@ namespace ExampleBrowser
         {
             this.vm.SelectedExample = e.Node.Tag as ExampleInfo;
             this.InitPlot();
+
+            this.transposedCheck.Enabled = this.vm.SelectedExample?.IsTransposable ?? false;
+            this.reversedCheck.Enabled = this.vm.SelectedExample?.IsReversible ?? false;
         }
 
         private void InitPlot()
         {
-            this.plot1.Model = this.vm.SelectedExample != null ? this.vm.SelectedExample.PlotModel : null;
-            this.plot1.Controller = this.vm.SelectedExample != null ? this.vm.SelectedExample.PlotController : null;
+            if (this.vm.SelectedExample == null)
+            {
+                this.plot1.Model = null;
+                this.plot1.Controller = null;
+            }
+            else
+            {
+                var flags = ExampleInfo.PrepareFlags(
+                    this.transposedCheck.Enabled && this.transposedCheck.Checked,
+                    this.reversedCheck.Enabled && this.reversedCheck.Checked);
+
+                this.plot1.Model = this.vm.SelectedExample.GetModel(flags);
+                this.plot1.Controller = this.vm.SelectedExample.GetController(flags);
+            }
+        }
+
+        private void transposedCheck_CheckedChanged(object sender, System.EventArgs e)
+        {
+            InitPlot();
+        }
+
+        private void reversedCheck_CheckedChanged(object sender, System.EventArgs e)
+        {
+            InitPlot();
         }
     }
 }

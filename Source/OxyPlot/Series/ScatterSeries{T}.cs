@@ -260,15 +260,19 @@ namespace OxyPlot.Series
             var yaxisTitle = this.YAxis.Title ?? DefaultYAxisTitle;
             var colorAxisTitle = (this.ColorAxis != null ? ((Axis)this.ColorAxis).Title : null) ?? DefaultColorAxisTitle;
 
+            var xmin = this.XAxis.ClipMinimum;
+            var xmax = this.XAxis.ClipMaximum;
+            var ymin = this.YAxis.ClipMinimum;
+            var ymax = this.YAxis.ClipMaximum;
             foreach (var p in actualPoints)
             {
-                if (p.X < this.XAxis.ActualMinimum || p.X > this.XAxis.ActualMaximum || p.Y < this.YAxis.ActualMinimum || p.Y > this.YAxis.ActualMaximum)
+                if (p.X < xmin || p.X > xmax || p.Y < ymin|| p.Y > ymax)
                 {
                     i++;
                     continue;
                 }
 
-                var sp = this.XAxis.Transform(p.X, p.Y, this.YAxis);
+                var sp = this.Transform(p.X, p.Y);
                 double dx = sp.x - point.x;
                 double dy = sp.y - point.y;
                 double d2 = (dx * dx) + (dy * dy);
@@ -314,10 +318,7 @@ namespace OxyPlot.Series
             return result;
         }
 
-        /// <summary>
-        /// Renders the series on the specified rendering context.
-        /// </summary>
-        /// <param name="rc">The rendering context.</param>
+        /// <inheritdoc/>
         public override void Render(IRenderContext rc)
         {
             var actualPoints = this.ActualPointsList;
@@ -367,7 +368,7 @@ namespace OxyPlot.Series
                 }
 
                 // Transform from data to screen coordinates
-                var screenPoint = this.XAxis.Transform(dp.X, dp.Y, this.YAxis);
+                var screenPoint = this.Transform(dp.X, dp.Y);
 
                 if (isSelected && this.IsItemSelected(i))
                 {
@@ -402,9 +403,7 @@ namespace OxyPlot.Series
             }
 
             // Offset of the bins
-            var binOffset = this.XAxis.Transform(this.MinX, this.MaxY, this.YAxis);
-
-            rc.SetClip(clippingRect);
+            var binOffset = this.Transform(this.MinX, this.MaxY);
 
             if (this.ColorAxis != null)
             {
@@ -414,7 +413,6 @@ namespace OxyPlot.Series
                 {
                     var color = this.ColorAxis.GetColor(group.Key);
                     rc.DrawMarkers(
-                        clippingRect,
                         group.Value,
                         this.MarkerType,
                         this.MarkerOutline,
@@ -422,6 +420,7 @@ namespace OxyPlot.Series
                         this.MarkerFill.GetActualColor(color),
                         markerIsStrokedOnly ? color : this.MarkerStroke,
                         this.MarkerStrokeThickness,
+                        this.EdgeRenderingMode,
                         this.BinSize,
                         binOffset);
                 }
@@ -429,7 +428,6 @@ namespace OxyPlot.Series
 
             // Draw unselected markers
             rc.DrawMarkers(
-                clippingRect,
                 allPoints,
                 this.MarkerType,
                 this.MarkerOutline,
@@ -437,12 +435,12 @@ namespace OxyPlot.Series
                 this.ActualMarkerFillColor,
                 this.MarkerStroke,
                 this.MarkerStrokeThickness,
+                this.EdgeRenderingMode,
                 this.BinSize,
                 binOffset);
 
             // Draw the selected markers
             rc.DrawMarkers(
-                clippingRect,
                 selectedPoints,
                 this.MarkerType,
                 this.MarkerOutline,
@@ -450,6 +448,7 @@ namespace OxyPlot.Series
                 this.PlotModel.SelectionColor,
                 this.PlotModel.SelectionColor,
                 this.MarkerStrokeThickness,
+                this.EdgeRenderingMode,
                 this.BinSize,
                 binOffset);
 
@@ -458,8 +457,6 @@ namespace OxyPlot.Series
                 // render point labels (not optimized for performance)
                 this.RenderPointLabels(rc, clippingRect);
             }
-
-            rc.ResetClip();
         }
 
         /// <summary>
@@ -475,14 +472,14 @@ namespace OxyPlot.Series
             var midpt = new ScreenPoint(xmid, ymid);
 
             rc.DrawMarker(
-                legendBox,
                 midpt,
                 this.MarkerType,
                 this.MarkerOutline,
                 this.MarkerSize,
                 this.IsSelected() ? this.PlotModel.SelectionColor : this.ActualMarkerFillColor,
                 this.IsSelected() ? this.PlotModel.SelectionColor : this.MarkerStroke,
-                this.MarkerStrokeThickness);
+                this.MarkerStrokeThickness,
+                this.EdgeRenderingMode);
         }
 
         /// <summary>
@@ -586,8 +583,7 @@ namespace OxyPlot.Series
                     }
 #endif
 
-                rc.DrawClippedText(
-                    clippingRect,
+                rc.DrawText(
                     pt,
                     s,
                     this.ActualTextColor,

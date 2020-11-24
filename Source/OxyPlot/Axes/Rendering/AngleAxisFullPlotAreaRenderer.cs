@@ -56,15 +56,12 @@ namespace OxyPlot.Axes
                 var tickCount = Math.Abs((int)(axisLength / axis.ActualMinorStep));
 
                 var screenPoints = this.MinorTickValues
-                            .Where(x => x > Math.Min(scaledStartAngle, scaledEndAngle) - eps &&
-                                   x < Math.Max(scaledStartAngle, scaledEndAngle) + eps &&
-                                   !this.MajorTickValues.Contains(x))
                             .Take(tickCount + 1)
-                            .Select(x => TransformToClientRectangle(magnitudeAxis.ActualMaximum, x, axis, this.Plot.PlotArea, magnitudeAxis.MidPoint));
+                            .Select(x => this.TransformToClientRectangle(magnitudeAxis.ClipMaximum, x, axis, this.Plot.PlotArea, magnitudeAxis.MidPoint));
 
                 foreach (var screenPoint in screenPoints)
                 {
-                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, screenPoint.x, screenPoint.y, this.MinorPen, false);
+                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, screenPoint.x, screenPoint.y, this.MinorPen, axis.EdgeRenderingMode);
                 }
             }
 
@@ -78,21 +75,19 @@ namespace OxyPlot.Axes
             if (this.MajorPen != null)
             {
                 var screenPoints = this.MajorTickValues
-                                .Where(x => x > Math.Min(scaledStartAngle, scaledEndAngle) - eps && x < Math.Max(scaledStartAngle, scaledEndAngle) + eps)
                                 .Take(majorTickCount)
-                                .Select(x => TransformToClientRectangle(magnitudeAxis.ActualMaximum, x, axis, this.Plot.PlotArea, magnitudeAxis.MidPoint))
-                                .ToArray();
+                                .Select(x => this.TransformToClientRectangle(magnitudeAxis.ClipMaximum, x, axis, this.Plot.PlotArea, magnitudeAxis.MidPoint));
 
                 foreach (var point in screenPoints)
                 {
-                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, point.x, point.y, this.MajorPen, false);
+                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, point.x, point.y, this.MajorPen, axis.EdgeRenderingMode);
                 }
             }
 
             //Text rendering
             foreach (var value in this.MajorLabelValues.Take(majorTickCount))
             {
-                ScreenPoint pt = TransformToClientRectangle(magnitudeAxis.ActualMaximum, value, axis, this.Plot.PlotArea, magnitudeAxis.MidPoint);
+                ScreenPoint pt = TransformToClientRectangle(magnitudeAxis.ClipMaximum, value, axis, this.Plot.PlotArea, magnitudeAxis.MidPoint);
 
                 var angle = Math.Atan2(pt.y - magnitudeAxis.MidPoint.y, pt.x - magnitudeAxis.MidPoint.x);
 

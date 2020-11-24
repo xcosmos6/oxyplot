@@ -321,6 +321,7 @@ namespace OxyPlot.WindowsForms
             this.trackerLabel.Top = (int)data.Position.Y - this.trackerLabel.Height;
             this.trackerLabel.Left = (int)data.Position.X - (this.trackerLabel.Width / 2);
             this.trackerLabel.Visible = true;
+            this.trackerLabel.UseMnemonic = false;
         }
 
         /// <summary>
@@ -455,7 +456,7 @@ namespace OxyPlot.WindowsForms
                             }
                         }
 
-                        ((IPlotModel)this.model).Render(this.renderContext, this.Width, this.Height);
+                        ((IPlotModel)this.model).Render(this.renderContext, new OxyRect(0, 0, this.Width, this.Height));
                     }
 
                     if (this.zoomRectangle != Rectangle.Empty)
@@ -561,17 +562,10 @@ namespace OxyPlot.WindowsForms
         /// </summary>
         private void DoCopy(IPlotView view, OxyInputEventArgs args)
         {
-            var background = this.ActualModel.Background.IsVisible() ? this.ActualModel.Background : this.ActualModel.Background;
-            if (background.IsInvisible())
-            {
-                background = OxyColors.White;
-            }
-
             var exporter = new PngExporter
             {
                 Width = this.ClientRectangle.Width,
                 Height = this.ClientRectangle.Height,
-                Background = background
             };
 
             var bitmap = exporter.ExportToBitmap(this.ActualModel);

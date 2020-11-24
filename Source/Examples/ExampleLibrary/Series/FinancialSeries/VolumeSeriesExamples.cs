@@ -58,6 +58,7 @@ namespace ExampleLibrary
         /// <param name="style">Style.</param>
         /// <param name="n">N.</param>
         /// <param name="natural">If set to <c>true</c> natural.</param>
+        /// <param name="transposed">If set to <c>true</c> transposed.</param>
         private static Example CreateVolumeSeries(
             string title, 
             VolumeStyle style, 
@@ -72,7 +73,8 @@ namespace ExampleLibrary
                 NegativeColor = OxyColors.Red,
                 PositiveHollow = false,
                 NegativeHollow = false,
-                VolumeStyle = style
+                VolumeStyle = style,
+                Title = "VolumeSeries",
             };
 
             // create bars
@@ -94,10 +96,10 @@ namespace ExampleLibrary
                 Minimum = Xmin,
                 Maximum = Xmax
             };
+
             var volAxis = new LinearAxis
             {
                 Position = AxisPosition.Left,
-                Key = "Volume",
                 StartPosition = 0.0,
                 EndPosition = 1.0,
                 Minimum = natural ? double.NaN : 0,

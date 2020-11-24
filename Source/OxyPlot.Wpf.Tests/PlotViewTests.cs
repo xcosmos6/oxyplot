@@ -107,5 +107,44 @@ namespace OxyPlot.Wpf.Tests
                 OxyAssert.PropertiesAreEqual(model, view);
             }
         }
+
+        /// <summary>
+        /// Make sure that the axis transforms has been initialized when showing a PlotView from a unit test.
+        /// In this case, the Loaded event is not fired.
+        /// </summary>
+        [Test]
+        [RequiresThread(System.Threading.ApartmentState.STA)]
+        public void PlotInifityPolyline()
+        {
+            var model = new PlotModel();
+            var series = new OxyPlot.Series.LineSeries();
+            series.Points.Add(new DataPoint(0, 0));
+            series.Points.Add(new DataPoint(1, -1e40));
+            model.Series.Add(series);
+
+            var view = new PlotView { Model = model };
+            var window = new Window { Height = 350, Width = 500, Content = view };
+
+            Assert.DoesNotThrow(() => window.Show());
+            Assert.IsNull(model.GetLastPlotException());
+        }
+
+        /// <summary>
+        /// Make sure the PlotView does not throw an exception if it is invalidated while not in the visual tree.
+        /// </summary>
+        [Test]
+        [RequiresThread(System.Threading.ApartmentState.STA)]
+        public void InvalidateDisconnected()
+        {
+            var model = new PlotModel();
+
+            var view = new PlotView { Model = model };
+            var window = new Window { Height = 350, Width = 500, Content = view };
+
+            Assert.DoesNotThrow(() => window.Show());
+            Assert.DoesNotThrow(() => view.InvalidatePlot());
+            window.Content = null;
+            Assert.DoesNotThrow(() => view.InvalidatePlot());
+        }
     }
 }

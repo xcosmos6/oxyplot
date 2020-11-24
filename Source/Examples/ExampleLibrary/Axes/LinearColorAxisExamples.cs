@@ -105,6 +105,42 @@ namespace ExampleLibrary
             return HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Rainbow(200), false);
         }
 
+        [Example("Viridis palette")]
+        public static PlotModel Viridis()
+        {
+            return HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Viridis(), false);
+        }
+
+        [Example("Plasma palette")]
+        public static PlotModel Plasma()
+        {
+            return HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Plasma(), false);
+        }
+
+        [Example("Magma palette")]
+        public static PlotModel Magma()
+        {
+            return HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Magma(), false);
+        }
+
+        [Example("Inferno palette")]
+        public static PlotModel Inferno()
+        {
+            return HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Inferno(), false);
+        }
+
+        [Example("Cividis palette")]
+        public static PlotModel Cividis()
+        {
+            return HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Cividis(), false);
+        }
+
+        [Example("Viridis (10 colors) palette")]
+        public static PlotModel Viridis10()
+        {
+            return HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Viridis(10), false);
+        }
+
         [Example("Rainbow (7 colors) palette")]
         public static PlotModel Rainbow7()
         {
@@ -199,5 +235,13 @@ namespace ExampleLibrary
             return model;
         }
 
+        [Example("Position None")]
+        public static PlotModel Position_None()
+        {
+            var model = HeatMapSeriesExamples.CreatePeaks(OxyPalettes.Jet(600), false);
+            var colorAxis = (LinearColorAxis)model.Axes[0];
+            colorAxis.Position = AxisPosition.None;
+            return model;
+        }
     }
 }

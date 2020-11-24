@@ -12,12 +12,13 @@ namespace ExampleLibrary
     using OxyPlot.Annotations;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("FunctionSeries"), Tags("Series")]
     public class FunctionSeriesExamples
     {
         [Example("Square wave")]
-        public static PlotModel CreateSquareWave()
+        public static PlotModel SquareWave()
         {
             return CreateSquareWave(25);
         }
@@ -157,6 +158,7 @@ namespace ExampleLibrary
         }
 
         [Example("Limaçon of Pascal")]
+        [DocumentationExample("Series/FunctionSeries")]
         public static PlotModel LimaconOfPascal()
         {
             // http://en.wikipedia.org/wiki/Lima%C3%A7on
@@ -283,7 +285,14 @@ namespace ExampleLibrary
         [Example("Lamé curves")]
         public static PlotModel LameCurves()
         {
-            var plot = new PlotModel { Title = "Lamé curves", PlotType = PlotType.Cartesian, LegendPlacement = LegendPlacement.Outside };
+            var plot = new PlotModel { Title = "Lamé curves", PlotType = PlotType.Cartesian };
+            var l = new Legend
+            {
+                LegendPlacement = LegendPlacement.Outside
+            };
+
+            plot.Legends.Add(l);
+
             for (double n = 0.25; n < 2; n += 0.25)
             {
                 plot.Series.Add(CreateSuperellipseSeries(n, 1, 1));

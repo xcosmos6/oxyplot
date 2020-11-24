@@ -228,8 +228,8 @@ namespace OxyPlot.Series
             if (this.IsXMonotonic)
             {
                 // determine render range
-                var xmin = this.XAxis.ActualMinimum;
-                xmax = this.XAxis.ActualMaximum;
+                var xmin = this.XAxis.ClipMinimum;
+                xmax = this.XAxis.ClipMaximum;
                 this.WindowStartIndex = this.UpdateWindowStartIndex(actualPoints, point => point.X, xmin, this.WindowStartIndex);
                 this.WindowStartIndex2 = this.UpdateWindowStartIndex(actualPoints2, point => point.X, xmin, this.WindowStartIndex2);
 
@@ -239,16 +239,12 @@ namespace OxyPlot.Series
 
             double minDistSquared = this.MinimumSegmentLength * this.MinimumSegmentLength;
 
-            var clippingRect = this.GetClippingRect();
-            rc.SetClip(clippingRect);
-
             var areaContext = new AreaRenderContext
             {
                 Points = actualPoints,
                 WindowStartIndex = startIdx,
                 XMax = xmax,
                 RenderContext = rc,
-                ClippingRect = clippingRect,
                 MinDistSquared = minDistSquared,
                 Reverse = false,
                 Color = this.ActualColor,
@@ -266,7 +262,6 @@ namespace OxyPlot.Series
 
             if (chunksOfPoints.Count != chunksOfPoints2.Count)
             {
-                rc.ResetClip();
                 return;
             }
 
@@ -276,34 +271,32 @@ namespace OxyPlot.Series
                 var pts = chunksOfPoints[chunkIndex];
                 var pts2 = chunksOfPoints2[chunkIndex];
 
-                // pts = SutherlandHodgmanClipping.ClipPolygon(clippingRect, pts);
-
                 // combine the two lines and draw the clipped area
                 var allPts = new List<ScreenPoint>();
                 allPts.AddRange(pts2);
                 allPts.AddRange(pts);
-                rc.DrawClippedPolygon(
-                    clippingRect,
+                rc.DrawReducedPolygon(
                     allPts,
                     minDistSquared,
                     this.GetSelectableFillColor(this.ActualFill),
-                    OxyColors.Undefined);
+                    OxyColors.Undefined,
+                    0,
+                    this.EdgeRenderingMode);
 
                 var markerSizes = new[] { this.MarkerSize };
 
                 // draw the markers on top
                 rc.DrawMarkers(
-                    clippingRect,
                     pts,
                     this.MarkerType,
                     null,
                     markerSizes,
-                    this.MarkerFill,
+                    this.ActualMarkerFill,
                     this.MarkerStroke,
                     this.MarkerStrokeThickness,
+                    this.EdgeRenderingMode,
                     1);
                 rc.DrawMarkers(
-                    clippingRect,
                     pts2,
                     this.MarkerType,
                     null,
@@ -311,10 +304,9 @@ namespace OxyPlot.Series
                     this.MarkerFill,
                     this.MarkerStroke,
                     this.MarkerStrokeThickness,
+                    this.EdgeRenderingMode,
                     1);
             }
-
-            rc.ResetClip();
         }
 
         /// <summary>
@@ -337,10 +329,10 @@ namespace OxyPlot.Series
 
             if (this.StrokeThickness > 0 && this.ActualLineStyle != LineStyle.None)
             {
-                rc.DrawLine(pts0, this.GetSelectableColor(this.ActualColor), this.StrokeThickness, this.ActualLineStyle.GetDashArray());
-                rc.DrawLine(pts1, this.GetSelectableColor(this.ActualColor2), this.StrokeThickness, this.ActualLineStyle.GetDashArray());
+                rc.DrawLine(pts0, this.GetSelectableColor(this.ActualColor), this.StrokeThickness, this.EdgeRenderingMode, this.ActualLineStyle.GetDashArray());
+                rc.DrawLine(pts1, this.GetSelectableColor(this.ActualColor2), this.StrokeThickness, this.EdgeRenderingMode, this.ActualLineStyle.GetDashArray());
             }
-            rc.DrawPolygon(pts, this.GetSelectableFillColor(this.ActualFill), OxyColors.Undefined);
+            rc.DrawPolygon(pts, this.GetSelectableFillColor(this.ActualFill), OxyColors.Undefined, 0, this.EdgeRenderingMode);
         }
 
         /// <summary>
@@ -422,7 +414,7 @@ namespace OxyPlot.Series
                 }
                 else
                 {
-                    var sp = this.XAxis.Transform(point.X, point.Y, this.YAxis);
+                    var sp = this.Transform(point.X, point.Y);
                     screenPoints.Add(sp);
                 }
 
@@ -463,15 +455,14 @@ namespace OxyPlot.Series
                 final = this.InterpolationAlgorithm.CreateSpline(resampled, false, 0.25);
             }
 
-            context.RenderContext.DrawClippedLine(
-                context.ClippingRect,
+            context.RenderContext.DrawReducedLine(
                 final,
                 context.MinDistSquared,
                 this.GetSelectableColor(context.Color),
                 this.StrokeThickness,
+                this.EdgeRenderingMode,
                 context.DashArray,
-                this.LineJoin,
-                false);
+                this.LineJoin);
 
             return final;
         }
@@ -527,11 +518,6 @@ namespace OxyPlot.Series
             /// Gets or sets render context.
             /// </summary>
             public IRenderContext RenderContext { get; set; }
-
-            /// <summary>
-            /// Gets or sets clipping rectangle.
-            /// </summary>
-            public OxyRect ClippingRect { get; set; }
 
             /// <summary>
             /// Gets or sets minimum squared distance between points.

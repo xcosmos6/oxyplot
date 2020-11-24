@@ -1,7 +1,6 @@
 ﻿namespace Example1
 {
     using System;
-    using System.Drawing;
     using System.IO;
     using System.Linq;
     using OxyPlot;
@@ -13,52 +12,46 @@
     {
         static void Main(string[] args)
         {
-            var outputUsingMemStream = "test-oxyplot-memstream.png";
-            var outputToFile = "test-oxyplot-file.png";
-            var outputExportFileStream = "test-oxyplot-stream-export.png";
+            var outputToFile = "test-oxyplot-static-export-file.png";
+            var outputExportStreamOOP = "test-oxyplot-ExportToStream.png";
             var outputExportFileOOP = "test-oxyplot-ExportToFile.png";
 
             var width = 1024;
             var height = 768;
+            var background = OxyColors.LightGray;
+            var resolution = 96d;
 
             var model = BuildPlotModel();
 
+            // export to file using static methods
+            PngExporter.Export(model, outputToFile, width, height, resolution);
 
-            PngExporter.Export(model, outputToFile, width, height, Brushes.White);
-
+            // export using the instance methods
             using (var stream = new MemoryStream())
             {
-                PngExporter.Export(model, stream, width, height, OxyColors.White, 96);
-                System.IO.File.WriteAllBytes(outputUsingMemStream, stream.ToArray());
+                var pngExporter = new PngExporter { Width = width, Height = height, Resolution = resolution };
+                pngExporter.Export(model, stream);
+                System.IO.File.WriteAllBytes(outputExportStreamOOP, stream.ToArray());
             }
 
-            using (var pngStream = PngExporter.ExportToStream(model, width, height, OxyColors.White))
-            {
-                var fileStream = new System.IO.FileStream(outputExportFileStream, FileMode.Create);
-                pngStream.CopyTo(fileStream);
-                fileStream.Flush();
-            }
-
-            var stream2 = new MemoryStream();
-            var pngExporter = new PngExporter { Width = width, Height = height, Background = OxyColors.White };
-            pngExporter.Export(model, stream2);
-
-            // Write to a file, OOP
-            var pngExporter2 = new PngExporter { Width = width, Height = height, Background = OxyColors.White };
-            pngExporter2.ExportToFile(model, outputExportFileOOP);
+            var pngExporter2 = new PngExporter { Width = width, Height = height, Resolution = resolution };
+            var bitmap = pngExporter2.ExportToBitmap(model);
+            bitmap.Save(outputExportFileOOP, System.Drawing.Imaging.ImageFormat.Png);
+            bitmap.Save(Path.ChangeExtension(outputExportFileOOP, ".gif"), System.Drawing.Imaging.ImageFormat.Gif);
         }
 
         private static IPlotModel BuildPlotModel()
         {
-            var rand = new Random();
+            var rand = new Random(21);
 
             var model = new PlotModel { Title = "Cake Type Popularity" };
 
             var cakePopularity = Enumerable.Range(1, 5).Select(i => rand.NextDouble()).ToArray();
             var sum = cakePopularity.Sum();
+            var barItems = cakePopularity.Select(cp => RandomBarItem(cp, sum)).ToArray();
             var barSeries = new BarSeries
             {
-                ItemsSource = cakePopularity.Select(cp => RandomBarItem(cp, sum)),
+                ItemsSource = barItems,
                 LabelPlacement = LabelPlacement.Base,
                 LabelFormatString = "{0:.00}%"
             };
@@ -70,13 +63,13 @@
                 Position = AxisPosition.Left,
                 Key = "CakeAxis",
                 ItemsSource = new[]
-               {
-               "Apple cake",
-               "Baumkuchen",
-               "Bundt Cake",
-               "Chocolate cake",
-               "Carrot cake"
-            }
+                {
+                    "Apple cake",
+                    "Baumkuchen",
+                    "Bundt Cake",
+                    "Chocolate cake",
+                    "Carrot cake"
+                }
             });
             return model;
         }

@@ -6,7 +6,11 @@
 
 namespace ExampleLibrary
 {
+    using System;
+    using System.Collections.Generic;
     using System.Reflection;
+
+    using ExampleLibrary.Utilities;
 
     using OxyPlot;
 
@@ -21,9 +25,24 @@ namespace ExampleLibrary
         private readonly MethodInfo method;
 
         /// <summary>
-        /// The result of the method call.
+        /// Indicates whether this instance was already initialized.
         /// </summary>
-        private object result;
+        private bool initialized;
+
+        /// <summary>
+        /// The un-modified example.
+        /// </summary>
+        private Example Example;
+
+        /// <summary>
+        /// The examples for this example info.
+        /// </summary>
+        private Dictionary<ExampleFlags, Example> examples;
+
+        /// <summary>
+        /// The options supported by this example.
+        /// </summary>
+        private ExampleFlags exampleSupport;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ExampleInfo"/> class.
@@ -32,12 +51,14 @@ namespace ExampleLibrary
         /// <param name="title">The title.</param>
         /// <param name="tags">The tags.</param>
         /// <param name="method">The method.</param>
-        public ExampleInfo(string category, string title, string[] tags, MethodInfo method)
+        /// <param name="excludeFromAutomatedTests">A value indiciating whether the example should be excluded from automated tests.</param>
+        public ExampleInfo(string category, string title, string[] tags, MethodInfo method, bool excludeFromAutomatedTests)
         {
             this.Category = category;
             this.Title = title;
             this.Tags = tags;
             this.method = method;
+            this.ExcludeFromAutomatedTests = excludeFromAutomatedTests;
         }
 
         /// <summary>
@@ -46,47 +67,108 @@ namespace ExampleLibrary
         /// <value>
         /// The category.
         /// </value>
-        public string Category { get; private set; }
+        public string Category { get; }
 
         /// <summary>
-        /// Gets the title.
+        /// Gets the code.
         /// </summary>
         /// <value>
-        /// The title.
+        /// The code.
         /// </value>
-        public string Title { get; private set; }
+        public string Code => this.PlotModel?.ToCode();
 
         /// <summary>
-        /// Gets the tags.
+        /// Gets a value indicating whether the plot model is reversible.
         /// </summary>
-        /// <value>
-        /// The tags.
-        /// </value>
-        public string[] Tags { get; private set; }
-
-        /// <summary>
-        /// Gets the plot model.
-        /// </summary>
-        /// <value>
-        /// The plot model.
-        /// </value>
-        public PlotModel PlotModel
+        public bool IsReversible
         {
             get
             {
-                var plotModel = this.Result as PlotModel;
-                if (plotModel != null)
-                {
-                    return plotModel;
-                }
-
-                var example = this.Result as Example;
-                return example != null ? example.Model : null;
+                this.EnsureInitialized();
+                return exampleSupport.HasFlag(ExampleFlags.Reverse);
             }
         }
 
         /// <summary>
-        /// Gets the plot controller.
+        /// Gets a value indicating whether the plot model is transposable.
+        /// </summary>
+        public bool IsTransposable
+        {
+            get
+            {
+                this.EnsureInitialized();
+                return exampleSupport.HasFlag(ExampleFlags.Transpose);
+            }
+        }
+
+        /// <summary>
+        /// Gets the code for the example with the given flags.
+        /// </summary>
+        /// <param name="flags">The flags for the example.</param>
+        /// <returns>Code that produces the example.</returns>
+        /// <remarks>Ignores unsupported flags.</remarks>
+        public string GetCode(ExampleFlags flags)
+        {
+            return this.GetModel(flags)?.ToCode();
+        }
+
+        /// <summary>
+        /// Gets the <see cref="PlotModel"/> for the example with the given flags.
+        /// </summary>
+        /// <param name="flags">The flags for the example.</param>
+        /// <returns>The <see cref="PlotModel"/>.</returns>
+        /// <remarks>Ignores unsupported flags.</remarks>
+        public PlotModel GetModel(ExampleFlags flags)
+        {
+            return this.GetExample(flags).Model;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="IPlotController"/> for the example with the given flags.
+        /// </summary>
+        /// <param name="flags">The flags for the example.</param>
+        /// <returns>The <see cref="IPlotController"/>.</returns>
+        /// <remarks>Ignores unsupported flags.</remarks>
+        public IPlotController GetController(ExampleFlags flags)
+        {
+            return this.GetExample(flags).Controller;
+        }
+
+        /// <summary>
+        /// Gets the <see cref="Example"/> with the given flags.
+        /// </summary>
+        /// <param name="flags">The flags for the example.</param>
+        /// <returns>The <see cref="Example"/>.</returns>
+        /// <remarks>Ignores unsupported flags.</remarks>
+        private Example GetExample(ExampleFlags flags)
+        {
+            this.EnsureInitialized();
+
+            // ignore flags we don't support
+            flags = FilterFlags(flags);
+
+            if (!examples.TryGetValue(flags, out var example))
+            {
+                example = GetDefaultExample();
+
+                if (flags.HasFlag(ExampleFlags.Transpose))
+                {
+                    example.Model.Transpose();
+                }
+
+                if (flags.HasFlag(ExampleFlags.Reverse))
+                {
+                    example.Model.ReverseAllAxes();
+                }
+
+                examples[flags] = example;
+            }
+
+            return example;
+        }
+
+        /// <summary>
+        /// Gets the plot controller for the default example.
         /// </summary>
         /// <value>
         /// The plot controller.
@@ -95,38 +177,49 @@ namespace ExampleLibrary
         {
             get
             {
-                var example = this.Result as Example;
-                return example != null ? example.Controller : null;
+                this.EnsureInitialized();
+                return this.Example.Controller;
             }
         }
 
         /// <summary>
-        /// Gets the code.
+        /// Gets the plot model for the default example.
         /// </summary>
         /// <value>
-        /// The code.
+        /// The plot model.
         /// </value>
-        public string Code
+        public PlotModel PlotModel
         {
             get
             {
-                return this.PlotModel != null ? this.PlotModel.ToCode() : null;
+                this.EnsureInitialized();
+                return this.Example.Model;
             }
         }
 
         /// <summary>
-        /// Gets the result.
+        /// Gets the tags.
         /// </summary>
         /// <value>
-        /// The result.
+        /// The tags.
         /// </value>
-        private object Result
-        {
-            get
-            {
-                return this.result ?? (this.result = this.method.Invoke(null, null));
-            }
-        }
+        public string[] Tags { get; }
+
+        /// <summary>
+        /// Gets a value indiciating whether this example should be excluded from automated tests.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if the example should be excluded from automated tests, otherwise <c>false</c>.
+        /// </value>
+        public bool ExcludeFromAutomatedTests { get; }
+
+        /// <summary>
+        /// Gets the title.
+        /// </summary>
+        /// <value>
+        /// The title.
+        /// </value>
+        public string Title { get; }
 
         /// <summary>
         /// Returns a <see cref="System.String" /> that represents this instance.
@@ -137,6 +230,84 @@ namespace ExampleLibrary
         public override string ToString()
         {
             return this.Title;
+        }
+
+        /// <summary>
+        /// Prepares <see cref="ExampleFlags"/> from the given parameters.
+        /// </summary>
+        /// <param name="transpose">Whether to set the <see cref="ExampleFlags.Transpose"/> flag.</param>
+        /// <param name="reverse">Whether to set the <see cref="ExampleFlags.Reverse"/> flag.</param>
+        /// <returns>The <see cref="ExampleFlags"/>.</returns>
+        public static ExampleFlags PrepareFlags(bool transpose, bool reverse)
+        {
+            var flags = (ExampleFlags)0;
+
+            if (transpose)
+            {
+                flags |= ExampleFlags.Transpose;
+            }
+
+            if (reverse)
+            {
+                flags |= ExampleFlags.Reverse;
+            }
+
+            return flags;
+        }
+
+        /// <summary>
+        /// Initializes this instance if it is not already initialized.
+        /// </summary>
+        private void EnsureInitialized()
+        {
+            if (this.initialized)
+            {
+                return;
+            }
+
+            this.initialized = true;
+            this.examples = new Dictionary<ExampleFlags, Example>();
+
+            this.Example = GetDefaultExample();
+
+            this.exampleSupport = PrepareFlags(this.Example.Model?.IsTransposable() == true, this.Example.Model?.IsReversible() == true);
+
+            // remember the 'default' model: loads the transposed/reversed ones as we need them
+            this.examples.Add(PrepareFlags(false, false), this.Example);
+        }
+
+        /// <summary>
+        /// Gets a new instance of the default example.
+        /// </summary>
+        /// <returns>An <see cref="Example"/>.</returns>
+        private Example GetDefaultExample()
+        {
+            var result = this.method.Invoke(null, null);
+
+            if (result is null)
+            {
+                return new Example(null, null);
+            }
+            if (result is PlotModel plotModel)
+            {
+                return new Example(plotModel, null);
+            }
+            else if (result is Example example)
+            {
+                return example;
+            }
+
+            throw new Exception($"Unsupport type returned by example method for example {Category} > {Title}: {result.GetType().FullName}.");
+        }
+
+        /// <summary>
+        /// Filters unsupported flags from the given flags.
+        /// </summary>
+        /// <param name="flags">The original set of flags.</param>
+        /// <returns>The filtered flags.</returns>
+        private ExampleFlags FilterFlags(ExampleFlags flags)
+        {
+            return flags & exampleSupport;
         }
     }
 }

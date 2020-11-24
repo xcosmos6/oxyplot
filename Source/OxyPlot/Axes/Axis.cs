@@ -11,8 +11,9 @@ namespace OxyPlot.Axes
 {
     using System;
     using System.Collections.Generic;
-
+    using System.Linq;
     using OxyPlot.Series;
+    using OxyPlot.Utilities;
 
     /// <summary>
     /// Provides an abstract base class for axes.
@@ -76,6 +77,10 @@ namespace OxyPlot.Axes
             this.MaximumPadding = 0.01;
             this.MinimumRange = 0;
             this.MaximumRange = double.PositiveInfinity;
+            this.MinimumDataMargin = 0;
+            this.MaximumDataMargin = 0;
+            this.MinimumMargin = 0;
+            this.MaximumMargin = 0;
 
             this.TickStyle = TickStyle.Outside;
             this.TicklineColor = OxyColors.Black;
@@ -133,11 +138,13 @@ namespace OxyPlot.Axes
         /// <summary>
         /// Occurs when the axis has been changed (by zooming, panning or resetting).
         /// </summary>
+        [Obsolete("May be removed in v4.0 (#111)")]
         public event EventHandler<AxisChangedEventArgs> AxisChanged;
 
         /// <summary>
         /// Occurs when the transform changed (size or axis range was changed).
         /// </summary>
+        [Obsolete("May be removed in v4.0 (#111)")]
         public event EventHandler TransformChanged;
 
         /// <summary>
@@ -170,6 +177,22 @@ namespace OxyPlot.Axes
         /// Otherwise, if <see cref="Minimum" /> is not <c>NaN</c>, this value will be defined by <see cref="Minimum" />.
         /// Otherwise this value will be defined by the minimum (+padding) of the data.</remarks>
         public double ActualMinimum { get; protected set; }
+
+        /// <summary>
+        /// Gets or sets the maximum displayed value on the axis, as determined by the <see cref="ActualMaximum"/> and <see cref="MaximumDataMargin"/>.
+        /// </summary>
+        /// <remarks>
+        /// The value is refreshed by <see cref="UpdateTransform(OxyRect)"/>, which is called before any plot elements are rendered.
+        /// </remarks>
+        public double ClipMaximum { get; protected set; }
+
+        /// <summary>
+        /// Gets or sets the minimum displayed value on the axis, as determined by the <see cref="ActualMinimum"/> and <see cref="MinimumDataMargin"/>.
+        /// </summary>
+        /// <remarks>
+        /// The value is refreshed by <see cref="UpdateTransform(OxyRect)"/>, which is called before any plot elements are rendered.
+        /// </remarks>
+        public double ClipMinimum { get; protected set; }
 
         /// <summary>
         /// Gets or sets the actual minor step.
@@ -379,6 +402,18 @@ namespace OxyPlot.Axes
         public double MaximumPadding { get; set; }
 
         /// <summary>
+        /// Gets or sets the screen-space data margin at the maximum. The default value is <c>0</c>.
+        /// </summary>
+        /// <value>The number of device independent units to included between the <see cref="ClipMaximum"/> and <see cref="ActualMaximum"/>.</value>
+        public double MaximumDataMargin { get; set; }
+
+        /// <summary>
+        /// Gets or sets the screen-space margin at the maximum. The default value is <c>0</c>.
+        /// </summary>
+        /// <value>The number of device independent units to be left empty between the axis and the <see cref="EndPosition"/>.</value>
+        public double MaximumMargin { get; set; }
+
+        /// <summary>
         /// Gets or sets the maximum range of the axis. Setting this property ensures that <c>ActualMaximum-ActualMinimum &lt; MaximumRange</c>. The default value is <c>double.PositiveInfinity</c>.
         /// </summary>
         public double MaximumRange { get; set; }
@@ -403,6 +438,18 @@ namespace OxyPlot.Axes
         /// </summary>
         /// <remarks>A value of 0.01 gives 1% more space on the minimum end of the axis. This property is not used if the <see cref="Minimum" /> property is set.</remarks>
         public double MinimumPadding { get; set; }
+
+        /// <summary>
+        /// Gets or sets the screen-space data margin at the minimum. The default value is <c>0</c>.
+        /// </summary>
+        /// <value>The number of device independent units to included between the <see cref="ClipMinimum"/> and <see cref="ActualMinimum"/>.</value>
+        public double MinimumDataMargin { get; set; }
+
+        /// <summary>
+        /// Gets or sets the screen-space margin at the minimum. The default value is <c>0</c>.
+        /// </summary>
+        /// <value>The number of device independent units to be left empty between the axis the <see cref="StartPosition"/>.</value>
+        public double MinimumMargin { get; set; }
 
         /// <summary>
         /// Gets or sets the minimum range of the axis. Setting this property ensures that <c>ActualMaximum-ActualMinimum > MinimumRange</c>. The default value is <c>0</c>.
@@ -554,7 +601,7 @@ namespace OxyPlot.Axes
         public double TitleFontWeight { get; set; }
 
         /// <summary>
-        /// Gets or sets the format string used for formatting the title and unit when <see cref="Unit" /> is defined. 
+        /// Gets or sets the format string used for formatting the title and unit when <see cref="Unit" /> is defined.
         /// The default value is "{0} [{1}]", where {0} refers to the <see cref="Title" /> and {1} refers to the <see cref="Unit" />.
         /// </summary>
         /// <remarks>If <see cref="Unit" /> is <c>null</c>, the actual title is defined by <see cref="Title" /> only.</remarks>
@@ -582,11 +629,10 @@ namespace OxyPlot.Axes
         public bool UseSuperExponentialFormat { get; set; }
 
         /// <summary>
-        /// Gets or sets the "desired" size by the renderer such that the axis text &amp; ticks will not be clipped.  This
-        /// size is distinct from the margin settings or the size which is actually rendered, as in: ActualWidth / ActualSize.  
-        /// Actual rendered size may be smaller or larger than the desired size if the margins are set manually.
+        /// Gets or sets the desired margins such that the axis text ticks will not be clipped.
+        /// The actual margins may be smaller or larger than the desired margins if they are set manually.
         /// </summary>
-        public OxySize DesiredSize { get; protected set; }
+        public OxyThickness DesiredMargin { get; protected set; }
 
         /// <summary>
         /// Gets or sets the position tier max shift.
@@ -660,7 +706,7 @@ namespace OxyPlot.Axes
         protected double ViewMinimum { get; set; }
 
         /// <summary>
-        /// Converts the value of the specified object to a double precision floating point number. DateTime objects are converted using DateTimeAxis.ToDouble and TimeSpan objects are converted using TimeSpanAxis.ToDouble
+        /// Converts the value of the specified object to a double precision floating point number. DateTime objects are converted using DateTimeAxis.ToDouble and TimeSpan objects are converted using TimeSpanAxis.ToDouble.
         /// </summary>
         /// <param name="value">The value.</param>
         /// <returns>The floating point number value.</returns>
@@ -715,9 +761,11 @@ namespace OxyPlot.Axes
         public virtual void GetTickValues(
             out IList<double> majorLabelValues, out IList<double> majorTickValues, out IList<double> minorTickValues)
         {
-            minorTickValues = this.CreateTickValues(this.ActualMinimum, this.ActualMaximum, this.ActualMinorStep);
-            majorTickValues = this.CreateTickValues(this.ActualMinimum, this.ActualMaximum, this.ActualMajorStep);
+            minorTickValues = this.CreateTickValues(this.ClipMinimum, this.ClipMaximum, this.ActualMinorStep);
+            majorTickValues = this.CreateTickValues(this.ClipMinimum, this.ClipMaximum, this.ActualMajorStep);
             majorLabelValues = majorTickValues;
+
+            minorTickValues = AxisUtilities.FilterRedundantMinorTicks(majorTickValues, minorTickValues);
         }
 
         /// <summary>
@@ -808,85 +856,151 @@ namespace OxyPlot.Axes
         }
 
         /// <summary>
-        /// Measures the size of the axis (maximum axis label width/height).
+        /// Measures the size of the axis and updates <see cref="DesiredMargin"/> accordingly. This takes into account the axis title as well as tick labels
+        /// potentially exceeding the axis range.
         /// </summary>
         /// <param name="rc">The render context.</param>
-        /// <returns>The size of the axis.</returns>
-        public virtual OxySize Measure(IRenderContext rc)
+        public virtual void Measure(IRenderContext rc)
         {
-            IList<double> majorTickValues;
-            IList<double> minorTickValues;
-            IList<double> majorLabelValues;
+            if (this.Position == AxisPosition.None)
+            {
+                this.DesiredMargin = new OxyThickness(0);
+                return;
+            }
 
-            this.GetTickValues(out majorLabelValues, out majorTickValues, out minorTickValues);
+            this.GetTickValues(out var majorLabelValues, out _, out _);
 
             var maximumTextSize = new OxySize();
-            foreach (double v in majorLabelValues)
+            foreach (var v in majorLabelValues)
             {
-                string s = this.FormatValue(v);
+                var s = this.FormatValue(v);
                 var size = rc.MeasureText(s, this.ActualFont, this.ActualFontSize, this.ActualFontWeight, this.Angle);
-                if (size.Width > maximumTextSize.Width)
-                {
-                    maximumTextSize = new OxySize(size.Width, maximumTextSize.Height);
-                }
-
-                if (size.Height > maximumTextSize.Height)
-                {
-                    maximumTextSize = new OxySize(maximumTextSize.Width, size.Height);
-                }
+                maximumTextSize = maximumTextSize.Include(size);
             }
 
-            var labelTextSize = rc.MeasureText(
-                this.ActualTitle, this.ActualFont, this.ActualFontSize, this.ActualFontWeight);
+            var titleTextSize = rc.MeasureText(this.ActualTitle, this.ActualTitleFont, this.ActualTitleFontSize, this.ActualTitleFontWeight);
 
-            double width = 0;
-            double height = 0;
+            var marginLeft = 0d;
+            var marginTop = 0d;
+            var marginRight = 0d;
+            var marginBottom = 0d;
 
-            if (this.IsVertical())
+            var minOuterMargin = Math.Max(0, this.IsReversed ? this.MaximumMargin : this.MinimumMargin);
+            var maxOuterMargin = Math.Max(0, this.IsReversed ? this.MinimumMargin : this.MaximumMargin);
+
+            var margin = this.TickStyle switch
             {
-                switch (this.TickStyle)
-                {
-                    case TickStyle.Outside:
-                        width += this.MajorTickSize;
-                        break;
-                    case TickStyle.Crossing:
-                        width += this.MajorTickSize * 0.75;
-                        break;
-                }
+                TickStyle.Outside => this.MajorTickSize,
+                TickStyle.Crossing => this.MajorTickSize * 0.75,
+                _ => 0
+            };
 
-                width += this.AxisDistance;
-                width += this.AxisTickToLabelDistance;
-                width += maximumTextSize.Width;
-                if (labelTextSize.Height > 0)
-                {
-                    width += this.AxisTitleDistance;
-                    width += labelTextSize.Height;
-                }
-            }
-            else
+            margin += this.AxisDistance + this.AxisTickToLabelDistance;
+
+            if (titleTextSize.Height > 0)
             {
-                // caution: this includes AngleAxis because Position=None
-                switch (this.TickStyle)
+                margin += this.AxisTitleDistance + titleTextSize.Height;
+            }
+
+            switch (this.Position)
+            {
+                case AxisPosition.Left:
+                    marginLeft = margin + maximumTextSize.Width;
+                    break;
+                case AxisPosition.Right:
+                    marginRight = margin + maximumTextSize.Width;
+                    break;
+                case AxisPosition.Top:
+                    marginTop = margin + maximumTextSize.Height;
+                    break;
+                case AxisPosition.Bottom:
+                    marginBottom = margin + maximumTextSize.Height;
+                    break;
+                case AxisPosition.All:
+                    marginLeft = marginRight = margin + maximumTextSize.Width;
+                    marginTop = marginBottom = margin + maximumTextSize.Height;
+                    break;
+                default:
+                    throw new InvalidOperationException();
+            }
+
+            if (this.IsPanEnabled || this.IsZoomEnabled)
+            {
+                var reachesMinPosition = Math.Min(this.StartPosition, this.EndPosition) < 0.01;
+                var reachesMaxPosition = Math.Max(this.StartPosition, this.EndPosition) > 0.99;
+
+                switch (this.Position)
                 {
-                    case TickStyle.Outside:
-                        height += this.MajorTickSize;
+                    case AxisPosition.Left:
+                    case AxisPosition.Right:
+                        if (reachesMinPosition)
+                        {
+                            marginBottom = Math.Max(0, (maximumTextSize.Height / 2) - minOuterMargin);
+                        }
+
+                        if (reachesMaxPosition)
+                        {
+                            marginTop = Math.Max(0, (maximumTextSize.Height / 2) - maxOuterMargin);
+                        }
+
                         break;
-                    case TickStyle.Crossing:
-                        height += this.MajorTickSize * 0.75;
+                    case AxisPosition.Top:
+                    case AxisPosition.Bottom:
+                        if (reachesMinPosition)
+                        {
+                            marginLeft = Math.Max(0, (maximumTextSize.Width / 2) - minOuterMargin);
+                        }
+
+                        if (reachesMaxPosition)
+                        {
+                            marginRight = Math.Max(0, (maximumTextSize.Width / 2) - maxOuterMargin);
+                        }
+
                         break;
                 }
+            }
+            else if (majorLabelValues.Count > 0)
+            {
+                var minLabel = majorLabelValues.Min();
+                var maxLabel = majorLabelValues.Max();
 
-                height += this.AxisDistance;
-                height += this.AxisTickToLabelDistance;
-                height += maximumTextSize.Height;
-                if (labelTextSize.Height > 0)
+                var minLabelText = this.FormatValue(minLabel);
+                var maxLabelText = this.FormatValue(maxLabel);
+
+                var minLabelSize = rc.MeasureText(minLabelText, this.ActualFont, this.ActualFontSize, this.ActualFontWeight, this.Angle);
+                var maxLabelSize = rc.MeasureText(maxLabelText, this.ActualFont, this.ActualFontSize, this.ActualFontWeight, this.Angle);
+
+                var minLabelPosition = this.Transform(minLabel);
+                var maxLabelPosition = this.Transform(maxLabel);
+
+                if (minLabelPosition > maxLabelPosition)
                 {
-                    height += this.AxisTitleDistance;
-                    height += labelTextSize.Height;
+                    Helpers.Swap(ref minLabelPosition, ref maxLabelPosition);
+                    Helpers.Swap(ref minLabelSize, ref maxLabelSize);
+                }
+
+                switch (this.Position)
+                {
+                    case AxisPosition.Left:
+                    case AxisPosition.Right:
+                        var screenMinY = Math.Min(this.ScreenMin.Y, this.ScreenMax.Y);
+                        var screenMaxY = Math.Max(this.ScreenMin.Y, this.ScreenMax.Y);
+
+                        marginTop = Math.Max(0, screenMinY - minLabelPosition + (minLabelSize.Height / 2) - minOuterMargin);
+                        marginBottom = Math.Max(0, maxLabelPosition - screenMaxY + (maxLabelSize.Height / 2) - maxOuterMargin);
+                        break;
+                    case AxisPosition.Top:
+                    case AxisPosition.Bottom:
+                        var screenMinX = Math.Min(this.ScreenMin.X, this.ScreenMax.X);
+                        var screenMaxX = Math.Max(this.ScreenMin.X, this.ScreenMax.X);
+
+                        marginLeft = Math.Max(0, screenMinX - minLabelPosition + (minLabelSize.Width / 2) - minOuterMargin);
+                        marginRight = Math.Max(0, maxLabelPosition - screenMaxX + (maxLabelSize.Width / 2) - maxOuterMargin);
+                        break;
                 }
             }
 
-            return this.DesiredSize = new OxySize(width, height);
+            this.DesiredMargin = new OxyThickness(marginLeft, marginTop, marginRight, marginBottom);
         }
 
         /// <summary>
@@ -954,6 +1068,11 @@ namespace OxyPlot.Axes
         /// <param name="pass">The pass.</param>
         public virtual void Render(IRenderContext rc, int pass)
         {
+            if (this.Position == AxisPosition.None)
+            {
+                return;
+            }
+
             var r = new HorizontalAndVerticalAxisRenderer(rc, this.PlotModel);
             r.Render(this, pass);
         }
@@ -987,8 +1106,8 @@ namespace OxyPlot.Axes
                 "{0}({1}, {2}, {3}, {4})",
                 this.GetType().Name,
                 this.Position,
-                this.ActualMinimum,
-                this.ActualMaximum,
+                this.ClipMinimum,
+                this.ClipMaximum,
                 this.ActualMajorStep);
         }
 
@@ -1016,7 +1135,19 @@ namespace OxyPlot.Axes
         /// <returns>The transformed value (screen coordinate).</returns>
         public virtual double Transform(double x)
         {
+#if DEBUG
+            // check if the screen coordinate is very big, this could cause issues
+            // only do this in DEBUG builds, as it affects performance
+            var s = (x - this.offset) * this.scale;
+            if (s * s > 1e12)
+            {
+                throw new InvalidOperationException($"Invalid transform (screen coordinate={s}). This could cause issues with the presentation framework.");
+            }
+
+            return s;
+#else
             return (x - this.offset) * this.scale;
+#endif
         }
 
         /// <summary>
@@ -1070,13 +1201,14 @@ namespace OxyPlot.Axes
                 }
             }
 
-            this.ViewMaximum = newMaximum;
-            this.ViewMinimum = newMinimum;
+            this.ClipMaximum = this.ViewMaximum = newMaximum;
+            this.ClipMinimum = this.ViewMinimum = newMinimum;
             this.UpdateActualMaxMin();
 
             var deltaMinimum = this.ActualMinimum - oldMinimum;
             var deltaMaximum = this.ActualMaximum - oldMaximum;
 
+            this.ActualMaximumAndMinimumChangedOverride();
             this.OnAxisChanged(new AxisChangedEventArgs(AxisChangeTypes.Zoom, deltaMinimum, deltaMaximum));
         }
 
@@ -1163,7 +1295,7 @@ namespace OxyPlot.Axes
         /// <param name="factor">The zoom factor.</param>
         public virtual void ZoomAtCenter(double factor)
         {
-            double sx = (this.Transform(this.ActualMaximum) + this.Transform(this.ActualMinimum)) * 0.5;
+            double sx = (this.Transform(this.ClipMaximum) + this.Transform(this.ClipMinimum)) * 0.5;
             var x = this.InverseTransform(sx);
             this.ZoomAt(factor, x);
         }
@@ -1232,15 +1364,6 @@ namespace OxyPlot.Axes
         }
 
         /// <summary>
-        /// Updates the axis with information from the plot series.
-        /// </summary>
-        /// <param name="series">The series collection.</param>
-        /// <remarks>This is used by the category axis that need to know the number of series using the axis.</remarks>
-        internal virtual void UpdateFromSeries(Series[] series)
-        {
-        }
-
-        /// <summary>
         /// Updates the actual minor and major step intervals.
         /// </summary>
         /// <param name="plotArea">The plot area rectangle.</param>
@@ -1285,17 +1408,45 @@ namespace OxyPlot.Axes
             double y0 = bounds.Bottom;
             double y1 = bounds.Top;
 
-            this.ScreenMin = new ScreenPoint(x0, y1);
-            this.ScreenMax = new ScreenPoint(x1, y0);
-
             double a0 = this.IsHorizontal() ? x0 : y0;
             double a1 = this.IsHorizontal() ? x1 : y1;
 
             double dx = a1 - a0;
             a1 = a0 + (this.EndPosition * dx);
             a0 = a0 + (this.StartPosition * dx);
-            this.ScreenMin = new ScreenPoint(a0, a1);
-            this.ScreenMax = new ScreenPoint(a1, a0);
+
+            double marginSign = (this.IsHorizontal() ^ this.IsReversed) ? 1.0 : -1.0;
+
+            if (this.MinimumMargin > 0)
+            {
+                a0 += this.MinimumMargin * marginSign;
+            }
+
+            if (this.MaximumMargin > 0)
+            {
+                a1 -= this.MaximumMargin * marginSign;
+            }
+
+            if (this.IsHorizontal())
+            {
+                this.ScreenMin = new ScreenPoint(a0, y1);
+                this.ScreenMax = new ScreenPoint(a1, y0);
+            }
+            else if (this.IsVertical())
+            {
+                this.ScreenMin = new ScreenPoint(x0, a1);
+                this.ScreenMax = new ScreenPoint(x1, a0);
+            }
+
+            if (this.MinimumDataMargin > 0)
+            {
+                a0 += this.MinimumDataMargin * marginSign;
+            }
+
+            if (this.MaximumDataMargin > 0)
+            {
+                a1 -= this.MaximumDataMargin * marginSign;
+            }
 
             if (this.ActualMaximum - this.ActualMinimum < double.Epsilon)
             {
@@ -1327,13 +1478,32 @@ namespace OxyPlot.Axes
             }
 
             this.SetTransform(newScale, newOffset);
+
+            if (this.MinimumDataMargin > 0)
+            {
+                this.ClipMinimum = this.InverseTransform(a0 - (this.MinimumDataMargin * marginSign));
+            }
+            else
+            {
+                this.ClipMinimum = this.ActualMinimum;
+            }
+
+            if (this.MaximumDataMargin > 0)
+            {
+                this.ClipMaximum = this.InverseTransform(a1 + (this.MaximumDataMargin * marginSign));
+            }
+            else
+            {
+                this.ClipMaximum = this.ActualMaximum;
+            }
+
+            this.ActualMaximumAndMinimumChangedOverride();
         }
 
         /// <summary>
-        /// Resets the current values.
+        /// Invoked when <see cref="ActualMinimum"/>, <see cref="ActualMaximum"/>, <see cref="ClipMinimum"/>, and <see cref="ClipMaximum"/> are changed.
         /// </summary>
-        /// <remarks>The current values may be modified during update of max/min and rendering.</remarks>
-        protected internal virtual void ResetCurrentValues()
+        protected virtual void ActualMaximumAndMinimumChangedOverride()
         {
         }
 
@@ -1389,7 +1559,7 @@ namespace OxyPlot.Axes
         /// <param name="step">The interval.</param>
         /// <param name="maxTicks">The maximum number of ticks (optional). The default value is 1000.</param>
         /// <returns>A sequence of values.</returns>
-        /// <exception cref="System.ArgumentException">Step cannot be zero or negative.;step</exception>
+        /// <exception cref="System.ArgumentException">Step cannot be zero or negative.</exception>
         protected virtual IList<double> CreateTickValues(double from, double to, double step, int maxTicks = 1000)
         {
             return AxisUtilities.CreateTickValues(from, to, step, maxTicks);
@@ -1560,6 +1730,9 @@ namespace OxyPlot.Axes
         /// Calculates the actual maximum value of the axis, including the <see cref="MaximumPadding" />.
         /// </summary>
         /// <returns>The new actual maximum value of the axis.</returns>
+        /// <remarks>
+        /// Must be called before <see cref="CalculateActualMinimum" />
+        /// </remarks>
         protected virtual double CalculateActualMaximum()
         {
             var actualMaximum = this.DataMaximum;
@@ -1586,6 +1759,9 @@ namespace OxyPlot.Axes
         /// Calculates the actual minimum value of the axis, including the <see cref="MinimumPadding" />.
         /// </summary>
         /// <returns>The new actual minimum value of the axis.</returns>
+        /// <remarks>
+        /// Must be called after <see cref="CalculateActualMaximum" />
+        /// </remarks>
         protected virtual double CalculateActualMinimum()
         {
             var actualMinimum = this.DataMinimum;
@@ -1601,7 +1777,8 @@ namespace OxyPlot.Axes
             {
                 double x1 = this.PreTransform(this.ActualMaximum);
                 double x0 = this.PreTransform(actualMinimum);
-                double dx = this.MinimumPadding * (x1 - x0);
+                double existingPadding = this.MaximumPadding;
+                double dx = this.MinimumPadding * ((x1 - x0) / (1.0 + existingPadding));
                 return this.PostInverseTransform(x0 - dx);
             }
 

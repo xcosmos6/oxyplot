@@ -16,7 +16,7 @@ namespace OxyPlot
     /// <summary>
     /// Provides an abstract base class for elements of a <see cref="PlotModel" />.
     /// </summary>
-    public abstract class PlotElement : UIElement, IPlotElement
+    public abstract class PlotElement : Element, IPlotElement
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="PlotElement" /> class.
@@ -27,6 +27,7 @@ namespace OxyPlot
             this.FontSize = double.NaN;
             this.FontWeight = FontWeights.Normal;
             this.TextColor = OxyColors.Automatic;
+            this.EdgeRenderingMode = EdgeRenderingMode.Automatic;
         }
 
         /// <summary>
@@ -73,6 +74,12 @@ namespace OxyPlot
         /// <value>The color of the text.</value>
         /// <remarks>If the value is <c>OxyColors.Automatic</c>, the TextColor of the parent PlotModel will be used.</remarks>
         public OxyColor TextColor { get; set; }
+
+        /// <summary>
+        /// Gets or sets the edge rendering mode that is used for rendering the plot element.
+        /// </summary>
+        /// <value>The edge rendering mode. The default is <see cref="EdgeRenderingMode.Automatic"/>.</value>
+        public EdgeRenderingMode EdgeRenderingMode { get; set; }
 
         /// <summary>
         /// Gets or sets the tool tip. The default is <c>null</c>.
@@ -140,6 +147,12 @@ namespace OxyPlot
             }
         }
 
+        /// <inheritdoc/>
+        public virtual OxyRect GetClippingRect()
+        {
+            return OxyRect.Everything;
+        }
+
         /// <summary>
         /// Returns a hash code for this element.
         /// </summary>
@@ -147,8 +160,13 @@ namespace OxyPlot
         /// <remarks>This method creates the hash code by reflecting the value of all public properties.</remarks>
         public virtual int GetElementHashCode()
         {
+#if NET40
+            var properties = this.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance);
+#else
             // Get the values of all properties in the object (this is slow, any better ideas?)
             var properties = this.GetType().GetRuntimeProperties().Where(pi => pi.GetMethod.IsPublic && !pi.GetMethod.IsStatic);
+#endif
+
             var propertyValues = properties.Select(pi => pi.GetValue(this, null));
             return HashCodeBuilder.GetHashCode(propertyValues);
         }

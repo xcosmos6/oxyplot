@@ -194,37 +194,6 @@ namespace OxyPlot.Series
         }
 
         /// <summary>
-        /// Transforms data space coordinates to orientated screen space coordinates.
-        /// </summary>
-        /// <param name="x">The x coordinate.</param>
-        /// <param name="y">The y coordinate.</param>
-        /// <returns>The transformed point.</returns>
-        public new ScreenPoint Transform(double x, double y)
-        {
-            return this.Orientate(base.Transform(x, y));
-        }
-
-        /// <summary>
-        /// Transforms data space coordinates to orientated screen space coordinates.
-        /// </summary>
-        /// <param name="point">The point to transform.</param>
-        /// <returns>The transformed point.</returns>
-        public new ScreenPoint Transform(DataPoint point)
-        {
-            return this.Orientate(base.Transform(point));
-        }
-
-        /// <summary>
-        /// Transforms orientated screen space coordinates to data space coordinates.
-        /// </summary>
-        /// <param name="point">The point to inverse transform.</param>
-        /// <returns>The inverse transformed point.</returns>
-        public new DataPoint InverseTransform(ScreenPoint point)
-        {
-            return base.InverseTransform(this.Orientate(point));
-        }
-
-        /// <summary>
         /// Renders the series on the specified render context.
         /// </summary>
         /// <param name="rc">The rendering context.</param>
@@ -297,12 +266,11 @@ namespace OxyPlot.Series
                 this.colorAxisHash = currentColorAxisHash;
             }
 
-            var clip = this.GetClippingRect();
             if (needImage)
             {
                 if (this.image != null)
                 {
-                    rc.DrawClippedImage(clip, this.image, rect.Left, rect.Top, rect.Width, rect.Height, 1, this.Interpolate);
+                    rc.DrawImage(this.image, rect.Left, rect.Top, rect.Width, rect.Height, 1, this.Interpolate);
                 }
             }
             else
@@ -324,7 +292,7 @@ namespace OxyPlot.Series
                         var pointb = this.Orientate(new ScreenPoint(s00.X + ((i + 1) * sdx), s00.Y + ((j + 1) * sdy))); // re-orientate
                         var rectrect = new OxyRect(pointa, pointb);
 
-                        rc.DrawClippedRectangle(clip, rectrect, rectcolor, OxyColors.Undefined, 0);
+                        rc.DrawRectangle(rectrect, rectcolor, OxyColors.Undefined, 0, this.EdgeRenderingMode);
                     }
                 }
             }
@@ -413,6 +381,12 @@ namespace OxyPlot.Series
 
                 p = new DataPoint(px, py);
                 point = this.Transform(p);
+            }
+
+            // perform a second range check in index space to accomodate rounding
+            if (i < -0.5 || i > this.Data.GetLength(0) - 0.5 || j < -0.5 || j > this.Data.GetLength(1) - 0.5)
+            {
+                return null;
             }
 
             var value = GetValue(this.Data, i, j);
@@ -530,7 +504,6 @@ namespace OxyPlot.Series
         /// <param name="rect">The bounding rectangle for the data.</param>
         protected virtual void RenderLabels(IRenderContext rc, OxyRect rect)
         {
-            var clip = this.GetClippingRect();
             int m = this.Data.GetLength(0);
             int n = this.Data.GetLength(1);
             double fontSize = (rect.Height / n) * this.LabelFontSize;
@@ -556,8 +529,7 @@ namespace OxyPlot.Series
                     var hsv = color.ToHsv();
                     var textColor = hsv[2] > 0.6 ? OxyColors.Black : OxyColors.White;
                     var label = this.GetLabel(v, i, j);
-                    rc.DrawClippedText(
-                        clip,
+                    rc.DrawText(
                         point,
                         label,
                         textColor,
@@ -581,25 +553,6 @@ namespace OxyPlot.Series
         protected virtual string GetLabel(double v, int i, int j)
         {
             return v.ToString(this.LabelFormatString, this.ActualCulture);
-        }
-
-        /// <summary>
-        /// Gets the clipping rectangle, transposed if the X axis is vertically orientated.
-        /// </summary>
-        /// <returns>The clipping rectangle.</returns>
-        protected new OxyRect GetClippingRect()
-        {
-            double minX = Math.Min(this.XAxis.ScreenMin.X, this.XAxis.ScreenMax.X);
-            double minY = Math.Min(this.YAxis.ScreenMin.Y, this.YAxis.ScreenMax.Y);
-            double maxX = Math.Max(this.XAxis.ScreenMin.X, this.XAxis.ScreenMax.X);
-            double maxY = Math.Max(this.YAxis.ScreenMin.Y, this.YAxis.ScreenMax.Y);
-
-            if (this.XAxis.IsVertical())
-            {
-                return new OxyRect(minY, minX, maxY - minY, maxX - minX);
-            }
-
-            return new OxyRect(minX, minY, maxX - minX, maxY - minY);
         }
 
         /// <summary>
@@ -697,21 +650,6 @@ namespace OxyPlot.Series
         }
 
         /// <summary>
-        /// Transposes the ScreenPoint if the X axis is vertically orientated
-        /// </summary>
-        /// <param name="point">The <see cref="ScreenPoint" /> to orientate.</param>
-        /// <returns>The oriented point.</returns>
-        private ScreenPoint Orientate(ScreenPoint point)
-        {
-            if (this.XAxis.IsVertical())
-            {
-                point = new ScreenPoint(point.Y, point.X);
-            }
-
-            return point;
-        }
-
-        /// <summary>
         /// Tests if a <see cref="DataPoint" /> is inside the heat map
         /// </summary>
         /// <param name="p">The <see cref="DataPoint" /> to test.</param>
@@ -735,7 +673,7 @@ namespace OxyPlot.Series
             var reverseY = this.YAxis.Transform(this.Y0) > this.YAxis.Transform(this.Y1);
 
             // determine if the data should be transposed
-            var swapXY = this.XAxis.IsVertical();
+            var swapXY = this.IsTransposed();
 
             int m = this.Data.GetLength(0);
             int n = this.Data.GetLength(1);

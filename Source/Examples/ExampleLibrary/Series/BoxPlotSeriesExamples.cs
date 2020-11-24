@@ -17,6 +17,7 @@ namespace ExampleLibrary
     using OxyPlot.Annotations;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("BoxPlotSeries"), Tags("Series")]
     public class BoxPlotSeriesExamples
@@ -26,13 +27,19 @@ namespace ExampleLibrary
         {
             const int boxes = 10;
 
-            var model = new PlotModel { Title = string.Format("BoxPlot (n={0})", boxes), LegendPlacement = LegendPlacement.Outside };
+            var model = new PlotModel { Title = string.Format("BoxPlot (n={0})", boxes) };
+            var l = new Legend
+            {
+                LegendPlacement = LegendPlacement.Outside
+            };
+
+            model.Legends.Add(l);
 
             var s1 = new BoxPlotSeries
-                {
-                    Title = "BoxPlotSeries",
-                    BoxWidth = 0.3
-                };
+            {
+                Title = "BoxPlotSeries",
+                BoxWidth = 0.3
+            };
 
             var random = new Random(31);
             for (var i = 0; i < boxes; i++)
@@ -166,6 +173,7 @@ namespace ExampleLibrary
         }
 
         [Example("BoxPlot (DateTime axis)")]
+        [DocumentationExample("Series/BoxPlotSeries")]
         public static PlotModel BoxPlotSeries_DateTimeAxis()
         {
             var m = new PlotModel();

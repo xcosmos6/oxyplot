@@ -45,6 +45,22 @@ namespace OxyPlot.Series
         public string Title { get; set; }
 
         /// <summary>
+        /// Gets or sets the key for the Legend to use on this series. The default is <c>null</c>.
+        /// </summary>
+        /// <remarks>
+        /// This key may be used by the plot model to show a custom Legend for the series.
+        /// </remarks>
+        public string LegendKey { get; set; }
+
+        /// <summary>
+        /// Gets or sets the groupname for the Series. The default is <c>null</c>.
+        /// </summary>
+        /// <remarks>
+        /// This groupname may for e.g. be used by the Legend class to group series into separated blocks.
+        /// </remarks>
+        public string SeriesGroupName { get; set; }
+
+        /// <summary>
         /// Gets or sets a value indicating whether the series should be rendered in the legend. The default is <c>true</c>.
         /// </summary>
         public bool RenderInLegend { get; set; }
@@ -121,11 +137,6 @@ namespace OxyPlot.Series
         /// Updates the data of the series.
         /// </summary>
         protected internal abstract void UpdateData();
-
-        /// <summary>
-        /// Updates the valid data of the series.
-        /// </summary>
-        protected internal abstract void UpdateValidData();
 
         /// <summary>
         /// Updates the maximum and minimum values of the series.

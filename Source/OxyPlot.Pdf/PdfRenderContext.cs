@@ -13,7 +13,6 @@ namespace OxyPlot.Pdf
     using System.Collections.Generic;
     using System.IO;
     using System.Linq;
-
     using PdfSharp.Drawing;
     using PdfSharp.Pdf;
 
@@ -21,7 +20,7 @@ namespace OxyPlot.Pdf
     /// Provides a render context for portable document format using PdfSharp (and SilverPDF for Silverlight)
     /// </summary>
     /// <remarks>see http://pdfsharp.codeplex.com and http://silverpdf.codeplex.com</remarks>
-    internal class PdfRenderContext : RenderContextBase, IDisposable
+    internal class PdfRenderContext : ClippingRenderContext, IDisposable
     {
         /// <summary>
         /// The font size factor.
@@ -81,15 +80,11 @@ namespace OxyPlot.Pdf
             GC.SuppressFinalize(this);
         }
 
-        /// <summary>
-        /// Draws an ellipse.
-        /// </summary>
-        /// <param name="rect">The rectangle.</param>
-        /// <param name="fill">The fill color.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The thickness.</param>
-        public override void DrawEllipse(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness)
+        /// <inheritdoc/>
+        public override void DrawEllipse(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness, EdgeRenderingMode edgeRenderingMode)
         {
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForEllipse(edgeRenderingMode));
+            
             if (fill.IsVisible())
             {
                 this.g.DrawEllipse(ToBrush(fill), rect.Left, rect.Top, rect.Width, rect.Height);
@@ -102,29 +97,21 @@ namespace OxyPlot.Pdf
             }
         }
 
-        /// <summary>
-        /// Draws the polyline from the specified points.
-        /// </summary>
-        /// <param name="points">The points.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The stroke thickness.</param>
-        /// <param name="dashArray">The dash array.</param>
-        /// <param name="lineJoin">The line join type.</param>
-        /// <param name="aliased">if set to <c>true</c> the shape will be aliased.</param>
+        /// <inheritdoc/>
         public override void DrawLine(
             IList<ScreenPoint> points,
             OxyColor stroke,
             double thickness,
+            EdgeRenderingMode edgeRenderingMode,
             double[] dashArray,
-            LineJoin lineJoin,
-            bool aliased)
+            LineJoin lineJoin)
         {
             if (stroke.IsInvisible() || thickness <= 0)
             {
                 return;
             }
 
-            this.g.SmoothingMode = aliased ? XSmoothingMode.None : XSmoothingMode.HighQuality;
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForLine(edgeRenderingMode, points));
             var pen = new XPen(ToColor(stroke), (float)thickness);
 
             if (dashArray != null)
@@ -147,26 +134,17 @@ namespace OxyPlot.Pdf
             this.g.DrawLines(pen, ToPoints(points));
         }
 
-        /// <summary>
-        /// Draws the polygon from the specified points. The polygon can have stroke and/or fill.
-        /// </summary>
-        /// <param name="points">The points.</param>
-        /// <param name="fill">The fill color.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The stroke thickness.</param>
-        /// <param name="dashArray">The dash array.</param>
-        /// <param name="lineJoin">The line join type.</param>
-        /// <param name="aliased">if set to <c>true</c> the shape will be aliased.</param>
+        /// <inheritdoc/>
         public override void DrawPolygon(
             IList<ScreenPoint> points,
             OxyColor fill,
             OxyColor stroke,
             double thickness,
+            EdgeRenderingMode edgeRenderingMode,
             double[] dashArray,
-            LineJoin lineJoin,
-            bool aliased)
+            LineJoin lineJoin)
         {
-            this.g.SmoothingMode = aliased ? XSmoothingMode.None : XSmoothingMode.HighQuality;
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForLine(edgeRenderingMode, points));
 
             var pts = ToPoints(points);
 
@@ -200,15 +178,10 @@ namespace OxyPlot.Pdf
             }
         }
 
-        /// <summary>
-        /// Draws the rectangle.
-        /// </summary>
-        /// <param name="rect">The rectangle.</param>
-        /// <param name="fill">The fill color.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The stroke thickness.</param>
-        public override void DrawRectangle(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness)
+        /// <inheritdoc/>
+        public override void DrawRectangle(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness, EdgeRenderingMode edgeRenderingMode)
         {
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForRect(edgeRenderingMode));
             if (fill.IsVisible())
             {
                 this.g.DrawRectangle(ToBrush(fill), rect.Left, rect.Top, rect.Width, rect.Height);
@@ -389,22 +362,15 @@ namespace OxyPlot.Pdf
             }
         }
 
-        /// <summary>
-        /// Sets the clip rectangle.
-        /// </summary>
-        /// <param name="rect">The clip rectangle.</param>
-        /// <returns>True if the clip rectangle was set.</returns>
-        public override bool SetClip(OxyRect rect)
+        /// <inheritdoc/>
+        protected override void SetClip(OxyRect rect)
         {
             this.g.Save();
             this.g.IntersectClip(rect.ToXRect());
-            return true;
         }
 
-        /// <summary>
-        /// Resets the clip rectangle.
-        /// </summary>
-        public override void ResetClip()
+        /// <inheritdoc/>
+        protected override void ResetClip()
         {
             this.g.Restore();
         }
@@ -466,7 +432,7 @@ namespace OxyPlot.Pdf
         private static XFont CreateFont(string fontFamily, double fontSize, XFontStyle fontStyle)
         {
             var pdfOptions = new XPdfFontOptions(PdfFontEncoding.Unicode);
-            var font = new XFont(fontFamily, (float)fontSize * FontsizeFactor, fontStyle, pdfOptions);
+            var font = new XFont(fontFamily ?? "Arial", (float)fontSize * FontsizeFactor, fontStyle, pdfOptions);
             return font;
         }
 
@@ -502,6 +468,15 @@ namespace OxyPlot.Pdf
 
             this.imageCache.Add(source, bitmap);
             return bitmap;
+        }
+
+        /// <summary>
+        /// Sets the smoothing mode.
+        /// </summary>
+        /// <param name="useAntiAliasing">A value indicating whether to use Anti-Aliasing.</param>
+        private void SetSmoothingMode(bool useAntiAliasing)
+        {
+            this.g.SmoothingMode = useAntiAliasing ? XSmoothingMode.HighQuality : XSmoothingMode.None;
         }
 
         /// <summary>

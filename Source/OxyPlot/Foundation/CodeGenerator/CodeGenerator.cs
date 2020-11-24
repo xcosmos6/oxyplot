@@ -68,6 +68,7 @@ namespace OxyPlot
             this.AddChildren(modelName, "Axes", model.Axes);
             this.AddChildren(modelName, "Series", model.Series);
             this.AddChildren(modelName, "Annotations", model.Annotations);
+            this.AddChildren(modelName, "Legends", model.Legends);
             this.AppendLine("return {0};", modelName);
             this.Indents -= 4;
             this.AppendLine("}");
@@ -136,7 +137,11 @@ namespace OxyPlot
         private string Add(object obj)
         {
             var type = obj.GetType();
+#if NET40
+            var hasParameterLessCtor = type.GetConstructors().Any(c => c.GetParameters().Length == 0);
+#else
             var hasParameterLessCtor = type.GetTypeInfo().DeclaredConstructors.Any(ci => ci.GetParameters().Length == 0);
+#endif
 
             if (!hasParameterLessCtor)
             {
@@ -345,7 +350,12 @@ namespace OxyPlot
             var listsToAdd = new Dictionary<string, IList>();
             var arraysToAdd = new Dictionary<string, Array>();
 
+#if NET40
+            var properties = instanceType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+#else
             var properties = instanceType.GetRuntimeProperties().Where(pi => pi.GetMethod.IsPublic && !pi.GetMethod.IsStatic);
+#endif
+
             foreach (var pi in properties)
             {
                 // check the [CodeGeneration] attribute
@@ -380,12 +390,20 @@ namespace OxyPlot
                     continue;
                 }
 
+#if NET40
+                var setter = pi.GetSetMethod();
+                if (setter == null || !setter.IsPublic)
+                {
+                    continue;
+                }
+#else
                 // only properties with public setters are used
                 var setter = pi.SetMethod;
                 if (setter == null || !setter.IsPublic)
                 {
                     continue;
                 }
+#endif
 
                 // skip default values
                 if ((value != null && value.Equals(defaultValue)) || value == defaultValue)

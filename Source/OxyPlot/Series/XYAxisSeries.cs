@@ -18,7 +18,7 @@ namespace OxyPlot.Series
     /// <summary>
     /// Provides an abstract base class for series that are related to an X-axis and a Y-axis.
     /// </summary>
-    public abstract class XYAxisSeries : ItemsSeries
+    public abstract class XYAxisSeries : ItemsSeries, ITransposablePlotElement
     {
         /// <summary>
         /// The default tracker format string
@@ -101,6 +101,12 @@ namespace OxyPlot.Series
         /// </summary>
         protected int WindowStartIndex { get; set; }
 
+        /// <inheritdoc/>
+        public override OxyRect GetClippingRect()
+        {
+            return PlotElementUtilities.GetClippingRect(this);
+        }
+
         /// <summary>
         /// Gets the rectangle the series uses on the screen (screen coordinates).
         /// </summary>
@@ -108,6 +114,12 @@ namespace OxyPlot.Series
         public OxyRect GetScreenRectangle()
         {
             return this.GetClippingRect();
+        }
+
+        /// <inheritdoc/>
+        public DataPoint InverseTransform(ScreenPoint p)
+        {
+            return PlotElementUtilities.InverseTransformOrientated(this, p);
         }
 
         /// <summary>
@@ -119,35 +131,10 @@ namespace OxyPlot.Series
         {
         }
 
-        /// <summary>
-        /// Transforms from a screen point to a data point by the axes of this series.
-        /// </summary>
-        /// <param name="p">The screen point.</param>
-        /// <returns>A data point.</returns>
-        public DataPoint InverseTransform(ScreenPoint p)
-        {
-            return this.XAxis.InverseTransform(p.X, p.Y, this.YAxis);
-        }
-
-        /// <summary>
-        /// Transforms the specified coordinates to a screen point by the axes of this series.
-        /// </summary>
-        /// <param name="x">The x coordinate.</param>
-        /// <param name="y">The y coordinate.</param>
-        /// <returns>A screen point.</returns>
-        public ScreenPoint Transform(double x, double y)
-        {
-            return this.XAxis.Transform(x, y, this.YAxis);
-        }
-
-        /// <summary>
-        /// Transforms the specified data point to a screen point by the axes of this series.
-        /// </summary>
-        /// <param name="p">The point.</param>
-        /// <returns>A screen point.</returns>
+        /// <inheritdoc/>
         public ScreenPoint Transform(DataPoint p)
         {
-            return this.XAxis.Transform(p.X, p.Y, this.YAxis);
+            return PlotElementUtilities.TransformOrientated(this, p);
         }
 
         /// <summary>
@@ -215,20 +202,6 @@ namespace OxyPlot.Series
         protected internal override void UpdateMaxMin()
         {
             this.MinX = this.MinY = this.MaxX = this.MaxY = double.NaN;
-        }
-
-        /// <summary>
-        /// Gets the clipping rectangle.
-        /// </summary>
-        /// <returns>The clipping rectangle.</returns>
-        protected OxyRect GetClippingRect()
-        {
-            double minX = Math.Min(this.XAxis.ScreenMin.X, this.XAxis.ScreenMax.X);
-            double minY = Math.Min(this.YAxis.ScreenMin.Y, this.YAxis.ScreenMax.Y);
-            double maxX = Math.Max(this.XAxis.ScreenMin.X, this.XAxis.ScreenMax.X);
-            double maxY = Math.Max(this.YAxis.ScreenMin.Y, this.YAxis.ScreenMax.Y);
-
-            return new OxyRect(minX, minY, maxX - minX, maxY - minY);
         }
 
         /// <summary>
@@ -350,7 +323,7 @@ namespace OxyPlot.Series
                     continue;
                 }
 
-                var sp = this.XAxis.Transform(p.x, p.y, this.YAxis);
+                var sp = this.Transform(p.x, p.y);
                 double d2 = (sp - point).LengthSquared;
 
                 if (d2 < minimumDistance)
@@ -795,62 +768,65 @@ namespace OxyPlot.Series
         /// <param name="targetX">target x.</param>
         /// <param name="initialGuess">initial guess index.</param>
         /// <returns>
-        /// index of x with max(x) &lt;= target x or -1 if cannot find
+        /// index of x with max(x) &lt;= target x or 0 if cannot find
         /// </returns>
-        protected int FindWindowStartIndex<T>(IList<T> items, Func<T, double> xgetter, double targetX, int initialGuess)
+        public int FindWindowStartIndex<T>(IList<T> items, Func<T, double> xgetter, double targetX, int initialGuess)
         {
-            int lastguess = 0;
             int start = 0;
-            int end = items.Count - 1;
-            int curGuess = initialGuess;
+            int nominalEnd = items.Count - 1;
+            while (nominalEnd > 0 && double.IsNaN(xgetter(items[nominalEnd])))
+                nominalEnd -= 1;
+            int end = nominalEnd;
+            int curGuess = Math.Max(0, Math.Min(end, initialGuess));
 
-            while (start <= end)
+            double GetX(int index)
             {
-                if (curGuess < start)
+                while (index <= nominalEnd)
                 {
-                    return lastguess;
+                    double guessX = xgetter(items[index]);
+                    if (double.IsNaN(guessX))
+                        index += 1;
+                    else
+                        return guessX;
                 }
-                else if (curGuess > end)
-                {
-                    return end;
-                }
+                return xgetter(items[nominalEnd]);
+            }
 
-                double guessX = xgetter(items[curGuess]);
+            while (start < end)
+            {
+                double guessX = GetX(curGuess);
                 if (guessX.Equals(targetX))
                 {
-                    return curGuess;
+                    start = curGuess;
+                    break;
                 }
                 else if (guessX > targetX)
                 {
                     end = curGuess - 1;
-                    if (end < start)
-                    {
-                        return lastguess;
-                    }
-                    else if (end == start)
-                    {
-                        return end;
-                    }
                 }
                 else
-                {
-                    start = curGuess + 1;
-                    lastguess = curGuess;
+                { 
+                    start = curGuess;
                 }
 
                 if (start >= end)
                 {
-                    return lastguess;
+                    break;
                 }
 
-                double endX = xgetter(items[end]);
-                double startX = xgetter(items[start]);
+                double endX = GetX(end);
+                double startX = GetX(start);
 
                 var m = (end - start + 1) / (endX - startX);
+                
                 curGuess = start + (int)((targetX - startX) * m);
+                curGuess = Math.Max(start + 1, Math.Min(curGuess, end));
             }
 
-            return lastguess;
+            while (start > 0 && (xgetter(items[start]) > targetX))
+                start -= 1;
+
+            return start;
         }
     }
 }

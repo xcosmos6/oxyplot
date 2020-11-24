@@ -17,10 +17,18 @@ namespace ExampleLibrary
     using OxyPlot.Annotations;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("ScatterSeries"), Tags("Series")]
     public class ScatterSeriesExamples
     {
+        [Example("Correlated points")]
+        [DocumentationExample("Series/ScatterSeries")]
+        public static PlotModel CorrelatedScatter()
+        {
+            return CreateCorrelatedScatter(1000);
+        }
+
         [Example("Random points")]
         public static PlotModel RandomScatter()
         {
@@ -140,7 +148,13 @@ namespace ExampleLibrary
         public static PlotModel RandomWithFit()
         {
             const int n = 20;
-            var model = new PlotModel { Title = string.Format("Random data (n={0})", n), LegendPosition = LegendPosition.LeftTop };
+            var model = new PlotModel { Title = string.Format("Random data (n={0})", n) };
+            var l = new Legend
+            {
+                LegendPosition = LegendPosition.LeftTop
+            };
+
+            model.Legends.Add(l);
 
             var s1 = new ScatterSeries { Title = "Measurements" };
             var random = new Random(7);
@@ -336,6 +350,36 @@ namespace ExampleLibrary
             return CreateRandomScatterSeriesWithColorAxisPlotModel(2500, OxyPalettes.BlackWhiteRed(9), MarkerType.Square, AxisPosition.Top, OxyColors.Undefined, OxyColors.Undefined);
         }
 
+        [Example("ScatterSeries with ColorAxis Viridis")]
+        public static PlotModel ColorMapViridis()
+        {
+            return CreateRandomScatterSeriesWithColorAxisPlotModel(2500, OxyPalettes.Viridis(), MarkerType.Square, AxisPosition.Right, OxyColors.Undefined, OxyColors.Undefined);
+        }
+
+        [Example("ScatterSeries with ColorAxis Plasma")]
+        public static PlotModel ColorMapPlasma()
+        {
+            return CreateRandomScatterSeriesWithColorAxisPlotModel(2500, OxyPalettes.Plasma(), MarkerType.Square, AxisPosition.Right, OxyColors.Undefined, OxyColors.Undefined);
+        }
+
+        [Example("ScatterSeries with ColorAxis Magma")]
+        public static PlotModel ColorMapMagma()
+        {
+            return CreateRandomScatterSeriesWithColorAxisPlotModel(2500, OxyPalettes.Magma(), MarkerType.Square, AxisPosition.Right, OxyColors.Undefined, OxyColors.Undefined);
+        }
+
+        [Example("ScatterSeries with ColorAxis Inferno")]
+        public static PlotModel ColorMapInferno()
+        {
+            return CreateRandomScatterSeriesWithColorAxisPlotModel(2500, OxyPalettes.Inferno(), MarkerType.Square, AxisPosition.Right, OxyColors.Undefined, OxyColors.Undefined);
+        }
+
+        [Example("ScatterSeries with ColorAxis Cividis")]
+        public static PlotModel ColorMapCividis()
+        {
+            return CreateRandomScatterSeriesWithColorAxisPlotModel(2500, OxyPalettes.Cividis(), MarkerType.Square, AxisPosition.Right, OxyColors.Undefined, OxyColors.Undefined);
+        }
+
         [Example("ScatterSeries with single-selected items")]
         public static PlotModel SingleSelectItems()
         {
@@ -511,6 +555,29 @@ namespace ExampleLibrary
             return model;
         }
 
+        private static PlotModel CreateCorrelatedScatter(int n)
+        {
+            var model = new PlotModel { Title = string.Format("Correlated ScatterSeries (n={0})", n) };
+
+            var s1 = new ScatterSeries
+            {
+                Title = "Series 1",
+                MarkerType = MarkerType.Diamond,
+                MarkerStrokeThickness = 0,
+            };
+
+            var random = new Random(1);
+            for (int i = 0; i < n; i++)
+            {
+                var x = GetNormalDistributedValue(random);
+                var y = 2 * x * x + GetNormalDistributedValue(random);
+                s1.Points.Add(new ScatterPoint(x, y));
+            }
+
+            model.Series.Add(s1);
+            return model;
+        }
+
         private static ScatterSeries CreateRandomScatterSeries(Random r, int n, string title, MarkerType markerType)
         {
             var s1 = new ScatterSeries { Title = title, MarkerType = markerType, MarkerStroke = OxyColors.Black, MarkerStrokeThickness = 1.0 };
@@ -525,17 +592,11 @@ namespace ExampleLibrary
             return s1;
         }
 
-        private static ScatterSeries CreateRandomScatterSeries2(int n, string title, MarkerType markerType)
+        private static double GetNormalDistributedValue(Random rnd)
         {
-            var series = new ScatterSeries
-            {
-                Title = title,
-                MarkerType = markerType,
-                MarkerStroke = OxyColors.Black,
-                MarkerStrokeThickness = 1.0,
-            };
-            series.Points.AddRange(CreateRandomScatterPoints(n));
-            return series;
+            var d1 = rnd.NextDouble();
+            var d2 = rnd.NextDouble();
+            return Math.Sqrt(-2.0 * Math.Log(d1)) * Math.Sin(2.0 * Math.PI * d2);
         }
 
         private static List<DataPoint> CreateRandomDataPoints(int n)

@@ -9,7 +9,7 @@ namespace OxyPlot.Tests
     using System;
     using System.Diagnostics.CodeAnalysis;
     using System.IO;
-
+    using System.Linq;
     using ExampleLibrary;
     using NUnit.Framework;
 
@@ -52,6 +52,7 @@ namespace OxyPlot.Tests
             SvgAssert.IsValidFile(FileName);
         }
 
+
         [Test]
         public void Export_AllExamplesInExampleLibrary_CheckThatAllFilesExist()
         {
@@ -61,20 +62,35 @@ namespace OxyPlot.Tests
                 Directory.CreateDirectory(DestinationDirectory);
             }
 
-            foreach (var example in Examples.GetList())
+            foreach (var example in Examples.GetListForAutomatedTest())
             {
-                if (example.PlotModel == null)
+                void ExportModelAndCheckFileExists(PlotModel model, string fileName)
                 {
-                    continue;
+                    if (model == null)
+                    {
+                        return;
+                    }
+
+                    var path = Path.Combine(DestinationDirectory, FileNameUtilities.CreateValidFileName(fileName, ".svg"));
+                    using (var s = File.Create(path))
+                    {
+                        SvgExporter.Export(model, s, 800, 500, true);
+                    }
+
+                    Assert.IsTrue(File.Exists(path));
                 }
 
-                var path = Path.Combine(DestinationDirectory, FileNameUtilities.CreateValidFileName(example.Category + " - " + example.Title, ".svg"));
-                using (var s = File.Create(path))
+                ExportModelAndCheckFileExists(example.PlotModel, $"{example.Category} - {example.Title}");
+
+                if (example.IsTransposable)
                 {
-                    SvgExporter.Export(example.PlotModel, s, 800, 500, true);
+                    ExportModelAndCheckFileExists(example.GetModel(ExampleFlags.Transpose), $"{example.Category} - {example.Title} - Transposed");
                 }
 
-                Assert.IsTrue(File.Exists(path));
+                if (example.IsReversible)
+                {
+                    ExportModelAndCheckFileExists(example.GetModel(ExampleFlags.Reverse), $"{example.Category} - {example.Title} - Reversed");
+                }
             }
         }
     }

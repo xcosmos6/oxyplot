@@ -73,10 +73,7 @@ namespace OxyPlot.Series
             return this.FindWindowStartIndex(this.Items, item => item.X, x, startIndex);
         }
 
-        /// <summary>
-        /// Renders the series on the specified rendering context.
-        /// </summary>
-        /// <param name="rc">The rendering context.</param>
+        /// <inheritdoc/>
         public override void Render(IRenderContext rc)
         {
             var nitems = this.Items.Count;
@@ -89,14 +86,11 @@ namespace OxyPlot.Series
 
             this.VerifyAxes();
 
-            var clippingRect = this.GetClippingRect();
             var dashArray = this.LineStyle.GetDashArray();
 
-            var datacandlewidth = (this.CandleWidth > 0) ? this.CandleWidth : this.minDx * 0.80;
-            var candlewidth = 
-                this.XAxis.Transform(items[0].X + datacandlewidth) -
-                this.XAxis.Transform(items[0].X); 
-
+            var dataCandlewidth = (this.CandleWidth > 0) ? this.CandleWidth : this.minDx * 0.80;
+            var halfDataCandlewidth = .5 * dataCandlewidth;
+            
             // colors
             var fillUp = this.GetSelectableFillColor(this.IncreasingColor);
             var fillDown = this.GetSelectableFillColor(this.DecreasingColor);
@@ -104,8 +98,8 @@ namespace OxyPlot.Series
             var lineDown = this.GetSelectableColor(this.DecreasingColor.ChangeIntensity(0.70));
 
             // determine render range
-            var xmin = this.XAxis.ActualMinimum;
-            var xmax = this.XAxis.ActualMaximum;
+            var xmin = this.XAxis.ClipMinimum;
+            var xmax = this.XAxis.ClipMaximum;
             this.WindowStartIndex = this.UpdateWindowStartIndex(items, item => item.X, xmin, this.WindowStartIndex);
 
             for (int i = this.WindowStartIndex; i < nitems; i++)
@@ -129,55 +123,34 @@ namespace OxyPlot.Series
 
                 var high = this.Transform(bar.X, bar.High);
                 var low = this.Transform(bar.X, bar.Low);
-
-                var open = this.Transform(bar.X, bar.Open);
-                var close = this.Transform(bar.X, bar.Close);
-                var max = new ScreenPoint(open.X, Math.Max(open.Y, close.Y));
-                var min = new ScreenPoint(open.X, Math.Min(open.Y, close.Y));
+                var max = this.Transform(bar.X, Math.Max(bar.Open, bar.Close));
+                var min = this.Transform(bar.X, Math.Min(bar.Open, bar.Close));
 
                 if (this.StrokeThickness > 0 && this.LineStyle != LineStyle.None)
                 {
                     // Upper extent
-                    rc.DrawClippedLine(
-                        clippingRect,
-                        new[] { high, min },
-                        0,
+                    rc.DrawLine(
+                        new[] { high, max },
                         lineColor,
                         this.StrokeThickness,
+                        this.EdgeRenderingMode,
                         dashArray,
-                        this.LineJoin,
-                        true);
+                        this.LineJoin);
 
                     // Lower extent
-                    rc.DrawClippedLine(
-                        clippingRect,
-                        new[] { max, low },
-                        0,
+                    rc.DrawLine(
+                        new[] { min, low },
                         lineColor,
                         this.StrokeThickness,
+                        this.EdgeRenderingMode,
                         dashArray,
-                        this.LineJoin,
-                        true);
+                        this.LineJoin);
                 }
 
-                // Body
-                var openLeft = open + new ScreenVector(-candlewidth * 0.5, 0);
-
-                if (max.Y - min.Y < 1.0)
-                {
-                    var leftPoint = new ScreenPoint(openLeft.X - this.StrokeThickness, min.Y);
-                    var rightPoint = new ScreenPoint(openLeft.X + this.StrokeThickness + candlewidth, min.Y);
-                    rc.DrawClippedLine(clippingRect, new[] { leftPoint, rightPoint }, leftPoint.DistanceToSquared(rightPoint), lineColor, this.StrokeThickness, null, LineJoin.Miter, true);
-
-                    leftPoint = new ScreenPoint(openLeft.X - this.StrokeThickness, max.Y);
-                    rightPoint = new ScreenPoint(openLeft.X + this.StrokeThickness + candlewidth, max.Y);
-                    rc.DrawClippedLine(clippingRect, new[] { leftPoint, rightPoint }, leftPoint.DistanceToSquared(rightPoint), lineColor, this.StrokeThickness, null, LineJoin.Miter, true);
-                }
-                else
-                {
-                    var rect = new OxyRect(openLeft.X, min.Y, candlewidth, max.Y - min.Y);
-                    rc.DrawClippedRectangleAsPolygon(clippingRect, rect, fillColor, lineColor, this.StrokeThickness);
-                }
+                var p1 = this.Transform(bar.X - halfDataCandlewidth, bar.Open);
+                var p2 = this.Transform(bar.X + halfDataCandlewidth, bar.Close);
+                var rect = new OxyRect(p1, p2);
+                rc.DrawRectangle(rect, fillColor, lineColor, this.StrokeThickness, this.EdgeRenderingMode);
             }
         }
 
@@ -193,11 +166,7 @@ namespace OxyPlot.Series
             double yclose = legendBox.Top + ((legendBox.Bottom - legendBox.Top) * 0.3);
             double[] dashArray = this.LineStyle.GetDashArray();
 
-            var datacandlewidth = (this.CandleWidth > 0) ? this.CandleWidth : this.minDx * 0.80;
-
-            var candlewidth = Math.Min(
-                legendBox.Width,
-                this.XAxis.Transform(this.Items[0].X + datacandlewidth) - this.XAxis.Transform(this.Items[0].X));
+            var candlewidth = legendBox.Width * 0.75;
 
             if (this.StrokeThickness > 0 && this.LineStyle != LineStyle.None)
             {
@@ -205,16 +174,17 @@ namespace OxyPlot.Series
                     new[] { new ScreenPoint(xmid, legendBox.Top), new ScreenPoint(xmid, legendBox.Bottom) },
                     this.GetSelectableColor(this.ActualColor),
                     this.StrokeThickness,
+                    this.EdgeRenderingMode,
                     dashArray,
-                    LineJoin.Miter,
-                    true);
+                    LineJoin.Miter);
             }
 
-            rc.DrawRectangleAsPolygon(
+            rc.DrawRectangle(
                 new OxyRect(xmid - (candlewidth * 0.5), yclose, candlewidth, yopen - yclose),
                 this.GetSelectableFillColor(this.IncreasingColor),
                 this.GetSelectableColor(this.ActualColor),
-                this.StrokeThickness);
+                this.StrokeThickness,
+                this.EdgeRenderingMode);
         }
 
         /// <summary>

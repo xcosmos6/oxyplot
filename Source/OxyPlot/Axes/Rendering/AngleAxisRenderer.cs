@@ -55,15 +55,12 @@ namespace OxyPlot.Axes
             {
                 var tickCount = Math.Abs((int)(axisLength / axis.ActualMinorStep));
                 var screenPoints = this.MinorTickValues
-                    .Where(x => x > Math.Min(scaledStartAngle, scaledEndAngle) - eps &&
-                           x < Math.Max(scaledStartAngle, scaledEndAngle) + eps &&
-                           !this.MajorTickValues.Contains(x))
                     .Take(tickCount + 1)
-                    .Select(x => magnitudeAxis.Transform(magnitudeAxis.ActualMaximum, x, axis));
+                    .Select(x => magnitudeAxis.Transform(magnitudeAxis.ClipMaximum, x, axis));
 
                 foreach (var screenPoint in screenPoints)
                 {
-                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, screenPoint.x, screenPoint.y, this.MinorPen, false);
+                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, screenPoint.x, screenPoint.y, this.MinorPen, axis.EdgeRenderingMode);
                 }
             }
 
@@ -77,20 +74,18 @@ namespace OxyPlot.Axes
             if (this.MajorPen != null)
             {
                 var screenPoints = this.MajorTickValues
-                    .Where(x => x > Math.Min(scaledStartAngle, scaledEndAngle) - eps && x < Math.Max(scaledStartAngle, scaledEndAngle) + eps)
                     .Take(majorTickCount)
-                    .Select(x => magnitudeAxis.Transform(magnitudeAxis.ActualMaximum, x, axis))
-                    .ToArray();
+                    .Select(x => magnitudeAxis.Transform(magnitudeAxis.ClipMaximum, x, axis));
 
                 foreach (var point in screenPoints)
                 {
-                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, point.x, point.y, this.MajorPen, false);
+                    this.RenderContext.DrawLine(magnitudeAxis.MidPoint.x, magnitudeAxis.MidPoint.y, point.x, point.y, this.MajorPen, axis.EdgeRenderingMode);
                 }
             }
 
             foreach (var value in this.MajorLabelValues.Take(majorTickCount))
             {
-                var pt = magnitudeAxis.Transform(magnitudeAxis.ActualMaximum, value, axis);
+                var pt = magnitudeAxis.Transform(magnitudeAxis.ClipMaximum, value, axis);
                 var angle = Math.Atan2(pt.y - magnitudeAxis.MidPoint.y, pt.x - magnitudeAxis.MidPoint.x);
 
                 // add some margin

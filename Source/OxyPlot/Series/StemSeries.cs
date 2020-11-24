@@ -119,8 +119,6 @@ namespace OxyPlot.Series
 
             double minDistSquared = this.MinimumSegmentLength * this.MinimumSegmentLength;
 
-            var clippingRect = this.GetClippingRect();
-
             // Transform all points to screen coordinates
             // Render the line when invalid points occur
             var dashArray = this.ActualDashArray;
@@ -139,15 +137,14 @@ namespace OxyPlot.Series
 
                 if (this.StrokeThickness > 0 && this.ActualLineStyle != LineStyle.None)
                 {
-                    rc.DrawClippedLine(
-                        clippingRect,
+                    rc.DrawReducedLine(
                         points,
                         minDistSquared,
                         actualColor,
                         this.StrokeThickness,
+                        this.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness),
                         dashArray,
-                        this.LineJoin,
-                        false);
+                        this.LineJoin);
                 }
 
                 if (markerPoints != null)
@@ -159,14 +156,14 @@ namespace OxyPlot.Series
             if (this.MarkerType != MarkerType.None)
             {
                 rc.DrawMarkers(
-                    clippingRect,
                     markerPoints,
                     this.MarkerType,
                     this.MarkerOutline,
                     new[] { this.MarkerSize },
-                    this.MarkerFill,
+                    this.ActualMarkerFill,
                     this.MarkerStroke,
-                    this.MarkerStrokeThickness);
+                    this.MarkerStrokeThickness,
+                    this.EdgeRenderingMode);
             }
         }
     }

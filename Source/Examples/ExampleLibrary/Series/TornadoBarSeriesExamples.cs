@@ -9,15 +9,23 @@ namespace ExampleLibrary
     using OxyPlot;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("TornadoBarSeries"), Tags("Series")]
     public static class TornadoBarSeriesExamples
     {
         [Example("Tornado diagram 1")]
+        [DocumentationExample("Series/TornadoBarSeries")]
         public static PlotModel TornadoDiagram1()
         {
             // http://en.wikipedia.org/wiki/Tornado_diagram
-            var model = new PlotModel { Title = "Tornado diagram 1", LegendPlacement = LegendPlacement.Outside };
+            var model = new PlotModel { Title = "Tornado diagram 1" };
+            var l = new Legend
+            {
+                LegendPlacement = LegendPlacement.Outside
+            };
+
+            model.Legends.Add(l);
 
             var s1 = new BarSeries
                 {
@@ -63,8 +71,13 @@ namespace ExampleLibrary
         [Example("Tornado diagram 2")]
         public static PlotModel TornadoDiagram2()
         {
-            var model = new PlotModel { Title = "Tornado diagram 2", LegendPlacement = LegendPlacement.Outside };
+            var model = new PlotModel { Title = "Tornado diagram 2" };
+            var l = new Legend
+            {
+                LegendPlacement = LegendPlacement.Outside
+            };
 
+            model.Legends.Add(l);
             var s1 = new TornadoBarSeries { Title = "TornadoBarSeries", BaseValue = 7 };
             s1.Items.Add(new TornadoBarItem { Minimum = 6, Maximum = 8 });
             s1.Items.Add(new TornadoBarItem { Minimum = 4, Maximum = 8 });

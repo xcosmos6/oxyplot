@@ -140,10 +140,7 @@ namespace OxyPlot.Series
             };
         }
 
-        /// <summary>
-        /// Renders the series on the specified rendering context.
-        /// </summary>
-        /// <param name="rc">The rendering context.</param>
+        /// <inheritdoc/>
         public override void Render(IRenderContext rc)
         {
             this.rectangles.Clear();
@@ -157,12 +154,7 @@ namespace OxyPlot.Series
 
             this.VerifyAxes();
 
-            var clippingRect = this.GetClippingRect();
-            rc.SetClip(clippingRect);
-
-            this.RenderBars(rc, clippingRect, actualPoints);
-
-            rc.ResetClip();
+            this.RenderBars(rc, actualPoints);
         }
 
         /// <summary>
@@ -177,11 +169,12 @@ namespace OxyPlot.Series
             var ymid = (legendBox.Top + legendBox.Bottom) / 2;
             var height = (legendBox.Bottom - legendBox.Top) * 0.8;
             var width = height;
-            rc.DrawRectangleAsPolygon(
+            rc.DrawRectangle(
                 new OxyRect(xmid - (0.5 * width), ymid - (0.5 * height), width, height),
                 this.GetSelectableColor(this.ActualColor),
                 this.StrokeColor,
-                this.StrokeThickness);
+                this.StrokeThickness,
+                this.EdgeRenderingMode);
         }
 
         /// <summary>
@@ -206,38 +199,49 @@ namespace OxyPlot.Series
         }
 
         /// <summary>
-        /// Applies an offset to a screen point.
-        /// </summary>
-        /// <param name="screenPoint">The screen point.</param>
-        /// <param name="offset">The offset.</param>
-        /// <returns>The translated screen point.</returns>
-        private static ScreenPoint Translate(ScreenPoint screenPoint, double offset)
-        {
-            return new ScreenPoint(screenPoint.X + offset, screenPoint.Y);
-        }
-
-        /// <summary>
         /// Find the index of a rectangle that contains the specified point.
         /// </summary>
         /// <param name="point">the target point</param>
         /// <returns>the rectangle index</returns>
         private int FindRectangleIndex(ScreenPoint point)
         {
-            var comparer = ComparerHelper.CreateComparer<OxyRect>(
-                (x, y) =>
-                {
-                    if (x.Right < point.X)
-                    {
-                        return -1;
-                    }
+            IComparer<OxyRect> comparer;
+            if (this.IsTransposed())
+            {
+                comparer = ComparerHelper.CreateComparer<OxyRect>(
+                    (x, y) =>
+                        {
+                            if (x.Bottom < point.Y)
+                            {
+                                return 1;
+                            }
 
-                    if (x.Left > point.X)
-                    {
-                        return 1;
-                    }
+                            if (x.Top > point.Y)
+                            {
+                                return -1;
+                            }
 
-                    return 0;
-                });
+                            return 0;
+                        });
+            }
+            else
+            {
+                comparer = ComparerHelper.CreateComparer<OxyRect>(
+                    (x, y) =>
+                        {
+                            if (x.Right < point.X)
+                            {
+                                return -1;
+                            }
+
+                            if (x.Left > point.X)
+                            {
+                                return 1;
+                            }
+
+                            return 0;
+                        });
+            }
 
             return this.rectangles.BinarySearch(0, this.rectangles.Count, new OxyRect(), comparer);
         }
@@ -246,11 +250,11 @@ namespace OxyPlot.Series
         /// Renders the series bars.
         /// </summary>
         /// <param name="rc">The rendering context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
         /// <param name="actualPoints">The list of points that should be rendered.</param>
-        private void RenderBars(IRenderContext rc, OxyRect clippingRect, List<DataPoint> actualPoints)
+        private void RenderBars(IRenderContext rc, List<DataPoint> actualPoints)
         {
             var widthOffset = this.GetBarWidth(actualPoints) / 2;
+            var widthVector = this.Orientate(new ScreenVector(widthOffset, 0));
 
             for (var pointIndex = 0; pointIndex < actualPoints.Count; pointIndex++)
             {
@@ -260,15 +264,20 @@ namespace OxyPlot.Series
                     continue;
                 }
 
-                var screenPoint = Translate(this.Transform(actualPoint), -widthOffset);
-                var basePoint = Translate(this.Transform(new DataPoint(actualPoint.X, 0)), widthOffset);
+                var screenPoint = this.Transform(actualPoint) - widthVector;
+                var basePoint = this.Transform(new DataPoint(actualPoint.X, 0)) + widthVector;
                 var rectangle = new OxyRect(basePoint, screenPoint);
                 this.rectangles.Add(rectangle);
                 this.rectanglesPointIndexes.Add(pointIndex);
 
                 var barColors = this.GetBarColors(actualPoint.Y);
 
-                rc.DrawClippedRectangleAsPolygon(clippingRect, rectangle, barColors.FillColor, barColors.StrokeColor, this.StrokeThickness);
+                rc.DrawRectangle(
+                    rectangle, 
+                    barColors.FillColor, 
+                    barColors.StrokeColor, 
+                    this.StrokeThickness, 
+                    this.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
             }
         }
 

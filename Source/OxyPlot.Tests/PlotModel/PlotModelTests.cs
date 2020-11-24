@@ -29,14 +29,17 @@ namespace OxyPlot.Tests
         [Test]
         public void Update_AllExamples_ThrowsNoExceptions()
         {
-            foreach (var example in Examples.GetList())
+            foreach (var example in Examples.GetListForAutomatedTest())
             {
-                if (example.PlotModel == null)
-                {
-                    continue;
-                }
+                ((IPlotModel)example.PlotModel)?.Update(true);
 
-                ((IPlotModel)example.PlotModel).Update(true);
+                var first = 1; // skip the 'none', since we do that above for clarity
+                var all = (int)(ExampleFlags.Transpose | ExampleFlags.Reverse);
+
+                for (int flags = first; flags < all; flags++)
+                {
+                    ((IPlotModel)example.GetModel((ExampleFlags)flags))?.Update(true);
+                }
             }
         }
 
@@ -94,7 +97,7 @@ namespace OxyPlot.Tests
         {
             var model = new PlotModel();
             var rc = Substitute.For<IRenderContext>();
-            ((IPlotModel)model).Render(rc, 0, 0);
+            ((IPlotModel)model).Render(rc, new OxyRect(0, 0, 0, 0));
         }
 
         /// <summary>
@@ -105,7 +108,7 @@ namespace OxyPlot.Tests
         {
             var model = new PlotModel { Padding = new OxyThickness(0) };
             var rc = Substitute.For<IRenderContext>();
-            ((IPlotModel)model).Render(rc, double.Epsilon, double.Epsilon);
+            ((IPlotModel)model).Render(rc, new OxyRect(0, 0, double.Epsilon, double.Epsilon));
         }
 
         /// <summary>
@@ -159,8 +162,8 @@ namespace OxyPlot.Tests
             plot.Axes.Add(horizontalAxis);
             plot.UpdateAndRenderToNull(800, 600);
             Assert.That(plot.ActualPlotMargins.Left, Is.EqualTo(26).Within(1), "left");
-            Assert.That(plot.ActualPlotMargins.Top, Is.EqualTo(0).Within(1), "top");
-            Assert.That(plot.ActualPlotMargins.Right, Is.EqualTo(0).Within(1), "right");
+            Assert.That(plot.ActualPlotMargins.Top, Is.EqualTo(5).Within(1), "top");
+            Assert.That(plot.ActualPlotMargins.Right, Is.EqualTo(7.5).Within(1), "right");
             Assert.That(plot.ActualPlotMargins.Bottom, Is.EqualTo(21).Within(1), "bottom");
         }
 

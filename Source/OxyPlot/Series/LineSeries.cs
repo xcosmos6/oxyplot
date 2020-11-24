@@ -331,18 +331,13 @@ namespace OxyPlot.Series
 
             this.VerifyAxes();
 
-            var clippingRect = this.GetClippingRect();
-            rc.SetClip(clippingRect);
-
-            this.RenderPoints(rc, clippingRect, actualPoints);
+            this.RenderPoints(rc, actualPoints);
 
             if (this.LabelFormatString != null)
             {
                 // render point labels (not optimized for performance)
-                this.RenderPointLabels(rc, clippingRect);
+                this.RenderPointLabels(rc);
             }
-
-            rc.ResetClip();
 
             if (this.LineLegendPosition != LineLegendPosition.None && !string.IsNullOrEmpty(this.Title))
             {
@@ -366,17 +361,18 @@ namespace OxyPlot.Series
                 pts,
                 this.GetSelectableColor(this.ActualColor),
                 this.StrokeThickness,
+                this.EdgeRenderingMode,
                 this.ActualDashArray);
             var midpt = new ScreenPoint(xmid, ymid);
             rc.DrawMarker(
-                legendBox,
                 midpt,
                 this.MarkerType,
                 this.MarkerOutline,
                 this.MarkerSize,
                 this.ActualMarkerFill,
                 this.MarkerStroke,
-                this.MarkerStrokeThickness);
+                this.MarkerStrokeThickness,
+                this.EdgeRenderingMode);
         }
 
         /// <summary>
@@ -435,9 +431,8 @@ namespace OxyPlot.Series
         /// Renders the points as line, broken line and markers.
         /// </summary>
         /// <param name="rc">The rendering context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
         /// <param name="points">The points to render.</param>
-        protected void RenderPoints(IRenderContext rc, OxyRect clippingRect, IList<DataPoint> points)
+        protected void RenderPoints(IRenderContext rc, IList<DataPoint> points)
         {
             var lastValidPoint = new ScreenPoint?();
             var areBrokenLinesRendered = this.BrokenLineThickness > 0 && this.BrokenLineStyle != LineStyle.None;
@@ -455,10 +450,10 @@ namespace OxyPlot.Series
 			if (this.IsXMonotonic)
 			{
 				// determine render range
-				var xmin = this.XAxis.ActualMinimum;
-				xmax = this.XAxis.ActualMaximum;
+				var xmin = this.XAxis.ClipMinimum;
+				xmax = this.XAxis.ClipMaximum;
 				this.WindowStartIndex = this.UpdateWindowStartIndex(points, point => point.X, xmin, this.WindowStartIndex);
-				
+
 				startIdx = this.WindowStartIndex;
 			}
 
@@ -477,14 +472,13 @@ namespace OxyPlot.Series
 														? this.ActualColor
 														: this.BrokenLineColor;
 
-						rc.DrawClippedLineSegments(
-							clippingRect,
+						rc.DrawLineSegments(
 							broken,
 							actualBrokenLineColor,
 							this.BrokenLineThickness,
+                            this.EdgeRenderingMode,
 							dashArray,
-							this.LineJoin,
-							false);
+							this.LineJoin);
 						broken.Clear();
 					}
 				}
@@ -505,11 +499,11 @@ namespace OxyPlot.Series
 					}
 
 					this.Decimator(this.contiguousScreenPointsBuffer, this.decimatorBuffer);
-					this.RenderLineAndMarkers(rc, clippingRect, this.decimatorBuffer);
+					this.RenderLineAndMarkers(rc, this.decimatorBuffer);
 				}
 				else
 				{
-					this.RenderLineAndMarkers(rc, clippingRect, this.contiguousScreenPointsBuffer);
+					this.RenderLineAndMarkers(rc, this.contiguousScreenPointsBuffer);
 				}
 
 				this.contiguousScreenPointsBuffer.Clear();
@@ -604,8 +598,7 @@ namespace OxyPlot.Series
         /// Renders the point labels.
         /// </summary>
         /// <param name="rc">The render context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
-        protected void RenderPointLabels(IRenderContext rc, OxyRect clippingRect)
+        protected void RenderPointLabels(IRenderContext rc)
         {
             int index = -1;
             foreach (var point in this.ActualPoints)
@@ -618,11 +611,6 @@ namespace OxyPlot.Series
                 }
 
                 var pt = this.Transform(point) + new ScreenVector(0, -this.LabelMargin);
-
-                if (!clippingRect.Contains(pt))
-                {
-                    continue;
-                }
 
                 var item = this.GetItem(index);
                 var s = StringHelper.Format(this.ActualCulture, this.LabelFormatString, item, point.X, point.Y);
@@ -649,8 +637,7 @@ namespace OxyPlot.Series
                     }
 #endif
 
-                rc.DrawClippedText(
-                    clippingRect,
+                rc.DrawText(
                     pt,
                     s,
                     this.ActualTextColor,
@@ -671,26 +658,29 @@ namespace OxyPlot.Series
         {
             // Find the position
             DataPoint point;
-            var ha = HorizontalAlignment.Left;
-            double dx;
+            HorizontalAlignment ha;
+            var va = VerticalAlignment.Middle;
+            double dx = 4;
+
             switch (this.LineLegendPosition)
             {
                 case LineLegendPosition.Start:
-
-                    // start position
                     point = this.ActualPoints[0];
                     ha = HorizontalAlignment.Right;
-                    dx = -4;
+                    dx = -dx;
                     break;
-                default:
-
-                    // end position
+                case LineLegendPosition.End:
                     point = this.ActualPoints[this.ActualPoints.Count - 1];
-                    dx = 4;
+                    ha = HorizontalAlignment.Left;
                     break;
+                case LineLegendPosition.None:
+                    return;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
 
-            var pt = this.Transform(point) + new ScreenVector(dx, 0);
+            this.Orientate(ref ha, ref va);
+            var pt = this.Transform(point) + this.Orientate(new ScreenVector(dx, 0));
 
             // Render the legend
             rc.DrawText(
@@ -702,16 +692,15 @@ namespace OxyPlot.Series
                 this.ActualFontWeight,
                 0,
                 ha,
-                VerticalAlignment.Middle);
+                va);
         }
 
         /// <summary>
         /// Renders the transformed points as a line (smoothed if <see cref="InterpolationAlgorithm"/> isn’t <c>null</c>) and markers (if <see cref="MarkerType"/> is not <c>None</c>).
         /// </summary>
         /// <param name="rc">The render context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
         /// <param name="pointsToRender">The points to render.</param>
-        protected virtual void RenderLineAndMarkers(IRenderContext rc, OxyRect clippingRect, IList<ScreenPoint> pointsToRender)
+        protected virtual void RenderLineAndMarkers(IRenderContext rc, IList<ScreenPoint> pointsToRender)
         {
             var screenPoints = pointsToRender;
             if (this.InterpolationAlgorithm != null)
@@ -724,14 +713,24 @@ namespace OxyPlot.Series
             // clip the line segments with the clipping rectangle
             if (this.StrokeThickness > 0 && this.ActualLineStyle != LineStyle.None)
             {
-                this.RenderLine(rc, clippingRect, screenPoints);
+                this.RenderLine(rc, screenPoints);
             }
 
             if (this.MarkerType != MarkerType.None)
             {
                 var markerBinOffset = this.MarkerResolution > 0 ? this.Transform(this.MinX, this.MinY) : default(ScreenPoint);
 
-                rc.DrawMarkers(clippingRect, pointsToRender, this.MarkerType, this.MarkerOutline, new[] { this.MarkerSize }, this.ActualMarkerFill, this.MarkerStroke, this.MarkerStrokeThickness, this.MarkerResolution, markerBinOffset);
+                rc.DrawMarkers(
+                    pointsToRender, 
+                    this.MarkerType, 
+                    this.MarkerOutline, 
+                    new[] { this.MarkerSize }, 
+                    this.ActualMarkerFill, 
+                    this.MarkerStroke, 
+                    this.MarkerStrokeThickness, 
+                    this.EdgeRenderingMode,
+                    this.MarkerResolution, 
+                    markerBinOffset);
             }
         }
 
@@ -739,9 +738,8 @@ namespace OxyPlot.Series
         /// Renders a continuous line.
         /// </summary>
         /// <param name="rc">The render context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
         /// <param name="pointsToRender">The points to render.</param>
-        protected virtual void RenderLine(IRenderContext rc, OxyRect clippingRect, IList<ScreenPoint> pointsToRender)
+        protected virtual void RenderLine(IRenderContext rc, IList<ScreenPoint> pointsToRender)
         {
             var dashArray = this.ActualDashArray;
 
@@ -750,7 +748,15 @@ namespace OxyPlot.Series
                 this.outputBuffer = new List<ScreenPoint>(pointsToRender.Count);
             }
 
-            rc.DrawClippedLine(clippingRect, pointsToRender, this.MinimumSegmentLength * this.MinimumSegmentLength, this.GetSelectableColor(this.ActualColor), this.StrokeThickness, dashArray, this.LineJoin, false, this.outputBuffer);
+            rc.DrawReducedLine(
+                pointsToRender, 
+                this.MinimumSegmentLength * this.MinimumSegmentLength, 
+                this.GetSelectableColor(this.ActualColor), 
+                this.StrokeThickness, 
+                this.EdgeRenderingMode,
+                dashArray, 
+                this.LineJoin, 
+                this.outputBuffer);
         }
 
         /// <summary>

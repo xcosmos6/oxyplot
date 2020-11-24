@@ -27,7 +27,7 @@ namespace OxyPlot.Axes
 
             this.IsPanEnabled = false;
             this.IsZoomEnabled = false;
-            this.Palette = OxyPalettes.Jet(200);
+            this.Palette = OxyPalettes.Viridis();
 
             this.LowColor = OxyColors.Undefined;
             this.HighColor = OxyColors.Undefined;
@@ -126,17 +126,17 @@ namespace OxyPlot.Axes
                 return int.MinValue;
             }
 
-            if (!this.LowColor.IsUndefined() && value < this.ActualMinimum)
+            if (!this.LowColor.IsUndefined() && value < this.ClipMinimum)
             {
                 return 0;
             }
 
-            if (!this.HighColor.IsUndefined() && value > this.ActualMaximum)
+            if (!this.HighColor.IsUndefined() && value > this.ClipMaximum)
             {
                 return this.Palette.Colors.Count + 1;
             }
 
-            int index = 1 + (int)((value - this.ActualMinimum) / (this.ActualMaximum - this.ActualMinimum) * this.Palette.Colors.Count);
+            int index = 1 + (int)((value - this.ClipMinimum) / (this.ClipMaximum - this.ClipMinimum) * this.Palette.Colors.Count);
 
             if (index < 1)
             {
@@ -198,7 +198,7 @@ namespace OxyPlot.Axes
 
                 if (this.RenderAsImage)
                 {
-                    var axisLength = this.Transform(this.ActualMaximum) - this.Transform(this.ActualMinimum);
+                    var axisLength = this.Transform(this.ClipMaximum) - this.Transform(this.ClipMinimum);
                     bool reverse = axisLength > 0;
                     axisLength = Math.Abs(axisLength);
 
@@ -224,7 +224,9 @@ namespace OxyPlot.Axes
                                                    ? new OxyRect(ymin, top, ymax - ymin, height)
                                                    : new OxyRect(left, ymin, width, ymax - ymin),
                                                color,
-                                               OxyColors.Undefined);
+                                               OxyColors.Undefined,
+                                               0,
+                                               this.EdgeRenderingMode);
                                        };
 
                     int n = this.Palette.Colors.Count;
@@ -243,13 +245,13 @@ namespace OxyPlot.Axes
 
                     if (!this.LowColor.IsUndefined())
                     {
-                        double ylow = this.Transform(this.ActualMinimum);
+                        double ylow = this.Transform(this.ClipMinimum);
                         drawColorRect(ylow, ylow + highLowLength, this.LowColor);
                     }
 
                     if (!this.HighColor.IsUndefined())
                     {
-                        double yhigh = this.Transform(this.ActualMaximum);
+                        double yhigh = this.Transform(this.ClipMaximum);
                         drawColorRect(yhigh, yhigh - highLowLength, this.HighColor);
                     }
                 }
@@ -275,8 +277,8 @@ namespace OxyPlot.Axes
         /// <returns>The value.</returns>
         protected double GetLowValue(int paletteIndex)
         {
-            return ((double)paletteIndex / this.Palette.Colors.Count * (this.ActualMaximum - this.ActualMinimum))
-                   + this.ActualMinimum;
+            return ((double)paletteIndex / this.Palette.Colors.Count * (this.ClipMaximum - this.ClipMinimum))
+                   + this.ClipMinimum;
         }
 
         /// <summary>

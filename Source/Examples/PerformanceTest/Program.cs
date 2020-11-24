@@ -70,7 +70,7 @@ namespace PerformanceTest
             var stopwatch = Stopwatch.StartNew();
             for (int i = 0; i < m; i++)
             {
-                ((IPlotModel)model).Render(rc, 800, 600);
+                ((IPlotModel)model).Render(rc, new OxyRect(0, 0, 800, 600));
             }
 
             stopwatch.Stop();
@@ -136,9 +136,9 @@ namespace PerformanceTest
                     1,
                     OxyColors.Black,
                     1,
+                    EdgeRenderingMode.Automatic,
                     null,
                     LineJoin.Miter,
-                    false,
                     outputBuffer);
             }
 

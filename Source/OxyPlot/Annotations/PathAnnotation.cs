@@ -11,6 +11,7 @@ namespace OxyPlot.Annotations
 {
     using System;
     using System.Collections.Generic;
+    using OxyPlot;
 
     /// <summary>
     /// Provides an abstract base class for all annotations that contain paths (lines, functions or polylines).
@@ -35,14 +36,10 @@ namespace OxyPlot.Annotations
             this.StrokeThickness = 1;
             this.LineStyle = LineStyle.Dash;
             this.LineJoin = LineJoin.Miter;
-            this.ClipByXAxis = true;
-            this.ClipByYAxis = true;
-            this.Aliased = false;
 
             this.TextLinePosition = 1;
             this.TextOrientation = AnnotationTextOrientation.AlongLine;
             this.TextMargin = 12;
-            this.ClipText = true;
             this.TextHorizontalAlignment = HorizontalAlignment.Right;
             this.TextVerticalAlignment = VerticalAlignment.Top;
         }
@@ -118,30 +115,6 @@ namespace OxyPlot.Annotations
         public double TextLinePosition { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether to clip the text within the plot area.
-        /// </summary>
-        /// <value><c>true</c> if text should be clipped within the plot area; otherwise, <c>false</c>.</value>
-        public bool ClipText { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether to clip the annotation line by the X axis range.
-        /// </summary>
-        /// <value><c>true</c> if clipping by the X axis is enabled; otherwise, <c>false</c>.</value>
-        public bool ClipByXAxis { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether to clip the annotation line by the Y axis range.
-        /// </summary>
-        /// <value><c>true</c> if clipping by the Y axis is enabled; otherwise, <c>false</c>.</value>
-        public bool ClipByYAxis { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the path is aliased.
-        /// </summary>
-        /// <value><c>true</c> if is aliased; otherwise, <c>false</c>.</value>
-        protected bool Aliased { get; set; }
-
-        /// <summary>
         /// Gets or sets the actual minimum value on the x axis.
         /// </summary>
         /// <value>The actual minimum value on the x axis.</value>
@@ -165,10 +138,7 @@ namespace OxyPlot.Annotations
         /// <value>The actual maximum value on the y axis.</value>
         protected double ActualMaximumY { get; set; }
 
-        /// <summary>
-        /// Renders the annotation on the specified context.
-        /// </summary>
-        /// <param name="rc">The render context.</param>
+        /// <inheritdoc/>
         public override void Render(IRenderContext rc)
         {
             base.Render(rc);
@@ -177,13 +147,6 @@ namespace OxyPlot.Annotations
 
             this.screenPoints = this.GetScreenPoints();
 
-            // clip to the area defined by the axes
-            var clippingRectangle = OxyRect.Create(
-                this.ClipByXAxis ? this.XAxis.ScreenMin.X : this.PlotModel.PlotArea.Left,
-                this.ClipByYAxis ? this.YAxis.ScreenMin.Y : this.PlotModel.PlotArea.Top,
-                this.ClipByXAxis ? this.XAxis.ScreenMax.X : this.PlotModel.PlotArea.Right,
-                this.ClipByYAxis ? this.YAxis.ScreenMax.Y : this.PlotModel.PlotArea.Bottom);
-
             const double MinimumSegmentLength = 4;
 
             var clippedPoints = new List<ScreenPoint>();
@@ -191,24 +154,23 @@ namespace OxyPlot.Annotations
 
             if (this.StrokeThickness > 0 && this.LineStyle != LineStyle.None)
             {
-                rc.DrawClippedLine(
-                   clippingRectangle,
+                rc.DrawReducedLine(
                    this.screenPoints,
                    MinimumSegmentLength * MinimumSegmentLength,
                    this.GetSelectableColor(this.Color),
                    this.StrokeThickness,
+                   this.EdgeRenderingMode,
                    dashArray,
                    this.LineJoin,
-                   this.Aliased,
                    null,
                    clippedPoints.AddRange);
             }
 
-            ScreenPoint position;
-            double angle;
-            double margin = this.TextMargin;
+            var margin = this.TextMargin;
 
-            if (this.TextHorizontalAlignment == HorizontalAlignment.Center)
+            this.GetActualTextAlignment(out var ha, out var va);
+
+            if (ha == HorizontalAlignment.Center)
             {
                 margin = 0;
             }
@@ -217,7 +179,7 @@ namespace OxyPlot.Annotations
                 margin *= this.TextLinePosition < 0.5 ? 1 : -1;
             }
 
-            if (GetPointAtRelativeDistance(clippedPoints, this.TextLinePosition, margin, out position, out angle))
+            if (GetPointAtRelativeDistance(clippedPoints, this.TextLinePosition, margin, out var position, out var angle))
             {
                 if (angle < -90)
                 {
@@ -243,12 +205,12 @@ namespace OxyPlot.Annotations
                 var angleInRadians = angle / 180 * Math.PI;
                 var f = 1;
 
-                if (this.TextHorizontalAlignment == HorizontalAlignment.Right)
+                if (ha == HorizontalAlignment.Right)
                 {
                     f = -1;
                 }
 
-                if (this.TextHorizontalAlignment == HorizontalAlignment.Center)
+                if (ha == HorizontalAlignment.Center)
                 {
                     f = 0;
                 }
@@ -264,37 +226,16 @@ namespace OxyPlot.Annotations
                         angle = this.TextRotation;
                     }
 
-                    if (this.ClipText)
-                    {
-                        var cs = new CohenSutherlandClipping(clippingRectangle);
-                        if (cs.IsInside(position))
-                        {
-                            rc.DrawClippedText(
-                                clippingRectangle,
-                                textPosition,
-                                this.Text,
-                                this.ActualTextColor,
-                                this.ActualFont,
-                                this.ActualFontSize,
-                                this.ActualFontWeight,
-                                angle,
-                                this.TextHorizontalAlignment,
-                                this.TextVerticalAlignment);
-                        }
-                    }
-                    else
-                    {
-                        rc.DrawText(
-                           textPosition,
-                           this.Text,
-                           this.ActualTextColor,
-                           this.ActualFont,
-                           this.ActualFontSize,
-                           this.ActualFontWeight,
-                           angle,
-                           this.TextHorizontalAlignment,
-                           this.TextVerticalAlignment);
-                    }
+                    rc.DrawText(
+                        textPosition,
+                        this.Text,
+                        this.ActualTextColor,
+                        this.ActualFont,
+                        this.ActualFontSize,
+                        this.ActualFontWeight,
+                        angle,
+                        ha,
+                        va);
                 }
             }
         }
@@ -334,25 +275,24 @@ namespace OxyPlot.Annotations
         /// </summary>
         protected virtual void CalculateActualMinimumsMaximums()
         {
-            this.ActualMinimumX = Math.Max(this.MinimumX, this.XAxis.ActualMinimum);
-            this.ActualMaximumX = Math.Min(this.MaximumX, this.XAxis.ActualMaximum);
-            this.ActualMinimumY = Math.Max(this.MinimumY, this.YAxis.ActualMinimum);
-            this.ActualMaximumY = Math.Min(this.MaximumY, this.YAxis.ActualMaximum);
+            this.ActualMinimumX = Math.Max(this.MinimumX, this.XAxis.ClipMinimum);
+            this.ActualMaximumX = Math.Min(this.MaximumX, this.XAxis.ClipMaximum);
+            this.ActualMinimumY = Math.Max(this.MinimumY, this.YAxis.ClipMinimum);
+            this.ActualMaximumY = Math.Min(this.MaximumY, this.YAxis.ClipMaximum);
+
+            var topLeft = this.InverseTransform(this.PlotModel.PlotArea.TopLeft);
+            var bottomRight = this.InverseTransform(this.PlotModel.PlotArea.BottomRight);
 
             if (!this.ClipByXAxis)
             {
-                double right = this.XAxis.InverseTransform(this.PlotModel.PlotArea.Right);
-                double left = this.XAxis.InverseTransform(this.PlotModel.PlotArea.Left);
-                this.ActualMaximumX = Math.Max(left, right);
-                this.ActualMinimumX = Math.Min(left, right);
+                this.ActualMaximumX = Math.Max(topLeft.X, bottomRight.X);
+                this.ActualMinimumX = Math.Min(topLeft.X, bottomRight.X);
             }
 
             if (!this.ClipByYAxis)
             {
-                double bottom = this.YAxis.InverseTransform(this.PlotModel.PlotArea.Bottom);
-                double top = this.YAxis.InverseTransform(this.PlotModel.PlotArea.Top);
-                this.ActualMaximumY = Math.Max(top, bottom);
-                this.ActualMinimumY = Math.Min(top, bottom);
+                this.ActualMaximumY = Math.Max(topLeft.Y, bottomRight.Y);
+                this.ActualMinimumY = Math.Min(topLeft.Y, bottomRight.Y);
             }
         }
 

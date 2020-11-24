@@ -27,7 +27,6 @@ namespace ExampleLibrary
                 Subtitle = "Archimedean spiral with equation r(θ) = θ for 0 < θ < 6π",
                 PlotType = PlotType.Polar,
                 PlotAreaBorderThickness = new OxyThickness(0),
-                PlotMargins = new OxyThickness(60, 20, 4, 40)
             };
             model.Axes.Add(
                 new AngleAxis
@@ -45,7 +44,7 @@ namespace ExampleLibrary
             model.Axes.Add(new MagnitudeAxis
             {
                 MajorGridlineStyle = LineStyle.Solid,
-                MinorGridlineStyle = LineStyle.Solid
+                MinorGridlineStyle = LineStyle.Solid,
             });
             model.Series.Add(new FunctionSeries(t => t, t => t, 0, Math.PI * 6, 0.01));
             return model;
@@ -81,7 +80,6 @@ namespace ExampleLibrary
                 Title = "Offset angle axis",
                 PlotType = PlotType.Polar,
                 PlotAreaBorderThickness = new OxyThickness(0),
-                PlotMargins = new OxyThickness(60, 20, 4, 40)
             };
 
             var angleAxis = new AngleAxis
@@ -134,7 +132,6 @@ namespace ExampleLibrary
                 Title = "Semi-circle polar plot",
                 PlotType = PlotType.Polar,
                 PlotAreaBorderThickness = new OxyThickness(0),
-                PlotMargins = new OxyThickness(60, 20, 4, 40)
             };
             model.Axes.Add(
                 new AngleAxis
@@ -168,7 +165,6 @@ namespace ExampleLibrary
                 Subtitle = "Angle axis range offset to -180 - 180",
                 PlotType = PlotType.Polar,
                 PlotAreaBorderThickness = new OxyThickness(0),
-                PlotMargins = new OxyThickness(60, 20, 4, 40)
             };
             model.Axes.Add(
                 new AngleAxis
@@ -205,7 +201,6 @@ namespace ExampleLibrary
                 Title = "East/west directions",
                 PlotType = PlotType.Polar,
                 PlotAreaBorderThickness = new OxyThickness(0),
-                PlotMargins = new OxyThickness(60, 20, 4, 40)
             };
             model.Axes.Add(
                 new AngleAxis
@@ -253,7 +248,6 @@ namespace ExampleLibrary
                 Subtitle = "The center can be move using the right mouse button",
                 PlotType = PlotType.Polar,
                 PlotAreaBorderThickness = new OxyThickness(1),
-                PlotMargins = new OxyThickness(60, 20, 4, 40)
             };
             model.Axes.Add(
                 new AngleAxisFullPlotArea
@@ -283,14 +277,39 @@ namespace ExampleLibrary
         [Example("Spiral full plot area")]
         public static PlotModel ArchimedeanSpiralFullPlotArea()
         {
+            var model = CreateFullPlotAreaPlotModel();
+            model.Series.Add(new FunctionSeries(t => t, t => t, 0, Math.PI * 6, 0.01));
+            return model;
+        }
+
+        [Example("Spiral full plot area with negative minimum")]
+        public static PlotModel SpiralWithNegativeMinium()
+        {
+            var model = CreateFullPlotAreaPlotModel();
+            model.Title += " with a negative minimum";
+            model.Series.Add(new FunctionSeries(t => t, t => t, -Math.PI * 6, Math.PI * 6, 0.01));
+            return model;
+        }
+
+        [Example("Spiral full plot area with positive minimum")]
+        public static PlotModel SpiralWithPositiveMinium()
+        {
+            var model = CreateFullPlotAreaPlotModel();
+            model.Title += " with a positive minimum";
+            model.Series.Add(new FunctionSeries(t => t, t => t, Math.PI * 6, Math.PI * 12, 0.01));
+            return model;
+        }
+
+        private static PlotModel CreateFullPlotAreaPlotModel()
+        {
             var model = new PlotModel
             {
                 Title = "Polar plot filling the plot area",
                 Subtitle = "The center can be move using the right mouse button",
                 PlotType = PlotType.Polar,
                 PlotAreaBorderThickness = new OxyThickness(1),
-                PlotMargins = new OxyThickness(60, 20, 4, 40)
             };
+
             model.Axes.Add(
                 new AngleAxisFullPlotArea
                 {
@@ -304,6 +323,7 @@ namespace ExampleLibrary
                     Minimum = 0,
                     Maximum = 2 * Math.PI
                 });
+
             model.Axes.Add(new MagnitudeAxisFullPlotArea
             {
                 MidshiftH = -0.1d,
@@ -311,7 +331,7 @@ namespace ExampleLibrary
                 MajorGridlineStyle = LineStyle.Solid,
                 MinorGridlineStyle = LineStyle.Solid
             });
-            model.Series.Add(new FunctionSeries(t => t, t => t, 0, Math.PI * 6, 0.01));
+
             return model;
         }
     }

@@ -72,8 +72,6 @@ namespace ExampleLibrary
 
             this.VerifyAxes();
 
-            var clippingRect = GetClippingRect();
-
             int n = points.Count;
 
             // Transform all points to screen coordinates
@@ -114,15 +112,14 @@ namespace ExampleLibrary
             // clip the line segments with the clipping rectangle
             for (int i = 0; i + 1 < segments.Count; i += 2)
             {
-                rc.DrawClippedLine(
-                    clippingRect,
+                rc.DrawReducedLine(
                     new[] { segments[i], segments[i + 1] },
                     2,
                     this.GetSelectableColor(this.Color),
                     this.StrokeThickness,
+                    this.EdgeRenderingMode,
                     null,
-                    LineJoin.Bevel,
-                    true);
+                    LineJoin.Bevel);
             }
         }
 
@@ -151,7 +148,7 @@ namespace ExampleLibrary
                               new ScreenPoint(xmid - 2, legendBox.Bottom),
                               new ScreenPoint(xmid + 3, legendBox.Bottom)
                           };
-            rc.DrawLineSegments(pts, this.GetSelectableColor(this.Color), this.StrokeThickness, null, LineJoin.Miter, true);
+            rc.DrawLineSegments(pts, this.GetSelectableColor(this.Color), this.StrokeThickness, this.EdgeRenderingMode, null, LineJoin.Miter);
         }
 
         /// <summary>

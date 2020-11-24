@@ -13,6 +13,7 @@ namespace ExampleLibrary
     using OxyPlot;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     [Examples("Z0 Discussions")]
     public class DiscussionExamples
@@ -121,9 +122,9 @@ namespace ExampleLibrary
             var r = new Random(37);
             for (var i = 0; i < model.DefaultColors.Count; i++)
             {
-                var columnSeries = new ColumnSeries();
-                columnSeries.Items.Add(new ColumnItem(50 + r.Next(50)));
-                columnSeries.Items.Add(new ColumnItem(40 + r.Next(50)));
+                var columnSeries = new BarSeries();
+                columnSeries.Items.Add(new BarItem(50 + r.Next(50)));
+                columnSeries.Items.Add(new BarItem(40 + r.Next(50)));
                 model.Series.Add(columnSeries);
             }
 
@@ -156,9 +157,9 @@ namespace ExampleLibrary
             var r = new Random(37);
             for (var i = 0; i < model.DefaultColors.Count; i++)
             {
-                var columnSeries = new ColumnSeries();
-                columnSeries.Items.Add(new ColumnItem(50 + r.Next(50)));
-                columnSeries.Items.Add(new ColumnItem(40 + r.Next(50)));
+                var columnSeries = new BarSeries();
+                columnSeries.Items.Add(new BarItem(50 + r.Next(50)));
+                columnSeries.Items.Add(new BarItem(40 + r.Next(50)));
                 model.Series.Add(columnSeries);
             }
 
@@ -187,9 +188,9 @@ namespace ExampleLibrary
             var r = new Random(37);
             for (var i = 0; i < model.DefaultColors.Count; i++)
             {
-                var columnSeries = new ColumnSeries();
-                columnSeries.Items.Add(new ColumnItem(50 + r.Next(50)));
-                columnSeries.Items.Add(new ColumnItem(40 + r.Next(50)));
+                var columnSeries = new BarSeries();
+                columnSeries.Items.Add(new BarItem(50 + r.Next(50)));
+                columnSeries.Items.Add(new BarItem(40 + r.Next(50)));
                 model.Series.Add(columnSeries);
             }
 
@@ -220,9 +221,9 @@ namespace ExampleLibrary
             var r = new Random(37);
             for (var i = 0; i < model.DefaultColors.Count; i++)
             {
-                var columnSeries = new ColumnSeries();
-                columnSeries.Items.Add(new ColumnItem(50 + r.Next(50)));
-                columnSeries.Items.Add(new ColumnItem(40 + r.Next(50)));
+                var columnSeries = new BarSeries();
+                columnSeries.Items.Add(new BarItem(50 + r.Next(50)));
+                columnSeries.Items.Add(new BarItem(40 + r.Next(50)));
                 model.Series.Add(columnSeries);
             }
 
@@ -257,8 +258,12 @@ namespace ExampleLibrary
         [Example("MarkerType = Circle problem")]
         public static PlotModel MarkerTypeCircleProblem()
         {
-            var plotModel = new PlotModel { LegendSymbolLength = 30, PlotType = PlotType.Cartesian, PlotAreaBorderThickness = new OxyThickness(0) };
+            var plotModel = new PlotModel { PlotType = PlotType.Cartesian, PlotAreaBorderThickness = new OxyThickness(0) };
 
+            var l = new Legend
+            {
+                LegendSymbolLength = 30
+            };
 
             var xaxis = new DateTimeAxis
                             {
@@ -359,7 +364,7 @@ namespace ExampleLibrary
                 var p3 = p1 - (direction * 0.2) - (normal * 0.1);
 
                 // draw the line segments
-                rc.DrawLineSegments(new[] { p0, p1, p1, p2, p1, p3 }, this.ActualColor, this.StrokeThickness);
+                rc.DrawLineSegments(new[] { p0, p1, p1, p2, p1, p3 }, this.ActualColor, this.StrokeThickness, this.EdgeRenderingMode);
             }
         }
     }

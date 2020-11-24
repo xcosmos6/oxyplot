@@ -19,6 +19,11 @@ namespace OxyPlot
     public struct OxyRect : IFormattable, IEquatable<OxyRect>
     {
         /// <summary>
+        /// Gets an infinitely large <see cref="OxyRect"/> starting at (0,0).
+        /// </summary>
+        public static readonly OxyRect Everything = new OxyRect(0, 0, double.PositiveInfinity, double.PositiveInfinity);
+
+        /// <summary>
         /// The height of the rectangle.
         /// </summary>
         private readonly double height;
@@ -171,6 +176,30 @@ namespace OxyPlot
         }
 
         /// <summary>
+        /// Gets the top left corner of the rectangle.
+        /// </summary>
+        /// <value>The top left corner.</value>
+        public ScreenPoint TopLeft => new ScreenPoint(this.Left, this.Top);
+
+        /// <summary>
+        /// Gets the top right corner of the rectangle.
+        /// </summary>
+        /// <value>The top right corner.</value>
+        public ScreenPoint TopRight => new ScreenPoint(this.Right, this.Top);
+
+        /// <summary>
+        /// Gets the bottom left corner of the rectangle.
+        /// </summary>
+        /// <value>The bottom left corner.</value>
+        public ScreenPoint BottomLeft => new ScreenPoint(this.Left, this.Bottom);
+
+        /// <summary>
+        /// Gets the bottom right corner of the rectangle.
+        /// </summary>
+        /// <value>The bottom right corner.</value>
+        public ScreenPoint BottomRight => new ScreenPoint(this.Right, this.Bottom);
+
+        /// <summary>
         /// Creates a rectangle from the specified corner coordinates.
         /// </summary>
         /// <param name="x0">The x0.</param>
@@ -269,6 +298,27 @@ namespace OxyPlot
         }
 
         /// <summary>
+        /// Intersects this <see cref="OxyRect"/> with another <see cref="OxyRect"/>.
+        /// </summary>
+        /// <param name="rect">The other <see cref="OxyRect"/>.</param>
+        /// <returns>The intersection between this <see cref="OxyRect"/> and the other <see cref="OxyRect"/>.</returns>
+        /// <remarks>If the two rectangles don't intersect, this returns an empty <see cref="OxyRect"/>.</remarks>
+        public OxyRect Intersect(OxyRect rect)
+        {
+            var left = Math.Max(this.Left, rect.Left);
+            var top = Math.Max(this.Top, rect.Top);
+            var right = Math.Min(this.Right, rect.Right);
+            var bottom = Math.Min(this.Bottom, rect.Bottom);
+
+            if (right < left || bottom < top)
+            {
+                return new OxyRect();
+            }
+
+            return new OxyRect(left, top, right - left, bottom - top);
+        }
+
+        /// <summary>
         /// Returns a rectangle that is shrunk by the specified thickness, in all directions.
         /// </summary>
         /// <param name="t">The thickness to apply to the rectangle.</param>
@@ -287,6 +337,28 @@ namespace OxyPlot
         public OxyRect Offset(double offsetX, double offsetY)
         {
             return new OxyRect(this.left + offsetX, this.top + offsetY, this.width, this.height);
+        }
+
+        /// <summary>
+        /// Returns a rectangle that is clipped to the outer bounds of the specified rectangle.
+        /// </summary>
+        /// <param name="clipRect">The rectangle that defines the outermost allowed coordinates for the clipped rectangle.</param>
+        /// <returns>The clipped rectangle.</returns>
+        public OxyRect Clip(OxyRect clipRect)
+        {
+            var clipRight = double.IsNegativeInfinity(clipRect.Left) && double.IsPositiveInfinity(clipRect.Width)
+                            ? double.PositiveInfinity
+                            : clipRect.Right;            
+            
+            var clipBottom = double.IsNegativeInfinity(clipRect.Top) && double.IsPositiveInfinity(clipRect.Height)
+                            ? double.PositiveInfinity
+                            : clipRect.Bottom;
+
+            return Create(
+                Math.Max(Math.Min(this.Left, clipRight), clipRect.Left),
+                Math.Max(Math.Min(this.Top, clipBottom), clipRect.Top),
+                Math.Max(Math.Min(this.Right, clipRight), clipRect.Left),
+                Math.Max(Math.Min(this.Bottom, clipBottom), clipRect.Top));
         }
     }
 }

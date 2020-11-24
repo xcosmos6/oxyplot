@@ -26,11 +26,6 @@ namespace OxyPlot
         private bool endIsWritten;
 
         /// <summary>
-        /// The clip path
-        /// </summary>
-        private string clipPath;
-
-        /// <summary>
         /// The clip path number
         /// </summary>
         private int clipPathNumber = 1;
@@ -164,7 +159,8 @@ namespace OxyPlot
         /// <param name="width">The width.</param>
         /// <param name="height">The height.</param>
         /// <param name="style">The style.</param>
-        public void WriteEllipse(double x, double y, double width, double height, string style)
+        /// <param name="edgeRenderingMode">The edge rendering mode.</param>
+        public void WriteEllipse(double x, double y, double width, double height, string style, EdgeRenderingMode edgeRenderingMode)
         {
             // http://www.w3.org/TR/SVG/shapes.html#EllipseElement
             this.WriteStartElement("ellipse");
@@ -173,7 +169,7 @@ namespace OxyPlot
             this.WriteAttributeString("rx", width / 2);
             this.WriteAttributeString("ry", height / 2);
             this.WriteAttributeString("style", style);
-            this.WriteClipPathAttribute();
+            this.WriteEdgeRenderingModeAttribute(edgeRenderingMode);
             this.WriteEndElement();
         }
 
@@ -189,11 +185,11 @@ namespace OxyPlot
             // http://www.w3.org/TR/SVG/masking.html
             // https://developer.mozilla.org/en-US/docs/Web/SVG/Element/clipPath
             // http://www.svgbasics.com/clipping.html
-            this.clipPath = "clipPath" + (this.clipPathNumber++);
-            this.WriteStartElement("g");
-            this.WriteAttributeString("clip-rule", "nonzero");
+            var clipPath = "clipPath" + this.clipPathNumber++;
+
+            this.WriteStartElement("defs");
             this.WriteStartElement("clipPath");
-            this.WriteAttributeString("id", this.clipPath);
+            this.WriteAttributeString("id", clipPath);
             this.WriteStartElement("rect");
             this.WriteAttributeString("x", x);
             this.WriteAttributeString("y", y);
@@ -201,6 +197,10 @@ namespace OxyPlot
             this.WriteAttributeString("height", height);
             this.WriteEndElement(); // rect
             this.WriteEndElement(); // clipPath
+            this.WriteEndElement(); // defs
+
+            this.WriteStartElement("g");
+            this.WriteAttributeString("clip-path", $"url(#{clipPath})");
         }
 
         /// <summary>
@@ -209,7 +209,6 @@ namespace OxyPlot
         public void EndClip()
         {
             this.WriteEndElement(); // g
-            this.clipPath = null;
         }
 
         /// <summary>
@@ -268,7 +267,6 @@ namespace OxyPlot
             encodedImage.Append(";base64,");
             encodedImage.Append(Convert.ToBase64String(imageData));
             this.WriteAttributeString("xlink", "href", null, encodedImage.ToString());
-            this.WriteClipPathAttribute();
             this.WriteEndElement();
         }
 
@@ -278,7 +276,8 @@ namespace OxyPlot
         /// <param name="p1">The first point.</param>
         /// <param name="p2">The second point.</param>
         /// <param name="style">The style.</param>
-        public void WriteLine(ScreenPoint p1, ScreenPoint p2, string style)
+        /// <param name="edgeRenderingMode">The edge rendering mode.</param>
+        public void WriteLine(ScreenPoint p1, ScreenPoint p2, string style, EdgeRenderingMode edgeRenderingMode)
         {
             // http://www.w3.org/TR/SVG/shapes.html#LineElement
             // http://www.w3schools.com/svg/svg_line.asp
@@ -288,7 +287,7 @@ namespace OxyPlot
             this.WriteAttributeString("x2", p2.X);
             this.WriteAttributeString("y2", p2.Y);
             this.WriteAttributeString("style", style);
-            this.WriteClipPathAttribute();
+            this.WriteEdgeRenderingModeAttribute(edgeRenderingMode);
             this.WriteEndElement();
         }
 
@@ -297,13 +296,14 @@ namespace OxyPlot
         /// </summary>
         /// <param name="points">The points.</param>
         /// <param name="style">The style.</param>
-        public void WritePolygon(IEnumerable<ScreenPoint> points, string style)
+        /// <param name="edgeRenderingMode">The edge rendering mode.</param>
+        public void WritePolygon(IEnumerable<ScreenPoint> points, string style, EdgeRenderingMode edgeRenderingMode)
         {
             // http://www.w3.org/TR/SVG/shapes.html#PolygonElement
             this.WriteStartElement("polygon");
             this.WriteAttributeString("points", this.PointsToString(points));
             this.WriteAttributeString("style", style);
-            this.WriteClipPathAttribute();
+            this.WriteEdgeRenderingModeAttribute(edgeRenderingMode);
             this.WriteEndElement();
         }
 
@@ -312,13 +312,14 @@ namespace OxyPlot
         /// </summary>
         /// <param name="pts">The points.</param>
         /// <param name="style">The style.</param>
-        public void WritePolyline(IEnumerable<ScreenPoint> pts, string style)
+        /// <param name="edgeRenderingMode">The edge rendering mode.</param>
+        public void WritePolyline(IEnumerable<ScreenPoint> pts, string style, EdgeRenderingMode edgeRenderingMode)
         {
             // http://www.w3.org/TR/SVG/shapes.html#PolylineElement
             this.WriteStartElement("polyline");
             this.WriteAttributeString("points", this.PointsToString(pts));
             this.WriteAttributeString("style", style);
-            this.WriteClipPathAttribute();
+            this.WriteEdgeRenderingModeAttribute(edgeRenderingMode);
             this.WriteEndElement();
         }
 
@@ -330,7 +331,8 @@ namespace OxyPlot
         /// <param name="width">The width.</param>
         /// <param name="height">The height.</param>
         /// <param name="style">The style.</param>
-        public void WriteRectangle(double x, double y, double width, double height, string style)
+        /// <param name="edgeRenderingMode">The edge rendering mode.</param>
+        public void WriteRectangle(double x, double y, double width, double height, string style, EdgeRenderingMode edgeRenderingMode)
         {
             // http://www.w3.org/TR/SVG/shapes.html#RectangleElement
             this.WriteStartElement("rect");
@@ -339,7 +341,7 @@ namespace OxyPlot
             this.WriteAttributeString("width", width);
             this.WriteAttributeString("height", height);
             this.WriteAttributeString("style", style);
-            this.WriteClipPathAttribute();
+            this.WriteEdgeRenderingModeAttribute(edgeRenderingMode);
             this.WriteEndElement();
         }
 
@@ -434,8 +436,6 @@ namespace OxyPlot
                 }
             }
 
-            this.WriteClipPathAttribute();
-
             // WriteAttributeString("style", style);
             this.WriteString(text);
             this.WriteEndElement();
@@ -468,16 +468,28 @@ namespace OxyPlot
         }
 
         /// <summary>
-        /// Writes the clip path attribute.
+        /// Writes the edge rendering mode attribute if necessary.
         /// </summary>
-        private void WriteClipPathAttribute()
+        /// <param name="edgeRenderingMode">The edge rendering mode.</param>
+        private void WriteEdgeRenderingModeAttribute(EdgeRenderingMode edgeRenderingMode)
         {
-            if (this.clipPath == null)
+            string value;
+            switch (edgeRenderingMode)
             {
-                return;
+                case EdgeRenderingMode.PreferSharpness:
+                    value = "crispEdges";
+                    break;
+                case EdgeRenderingMode.PreferSpeed:
+                    value = "optimizeSpeed";
+                    break;
+                case EdgeRenderingMode.PreferGeometricAccuracy:
+                    value = "geometricPrecision";
+                    break;
+                default:
+                    return;
             }
 
-            this.WriteAttributeString("clip-path", string.Format("url(#{0})", this.clipPath));
+            this.WriteAttributeString("shape-rendering", value);
         }
 
         /// <summary>

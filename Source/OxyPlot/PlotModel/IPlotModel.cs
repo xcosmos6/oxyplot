@@ -18,6 +18,7 @@ namespace OxyPlot
         /// Gets the color of the background of the plot.
         /// </summary>
         /// <value>The color.</value>
+        /// <remarks>If the background color is set to <see cref="OxyColors.Undefined" /> or is otherwise invisible then the background will be determined by the plot view or exporter.</remarks>
         OxyColor Background { get; }
 
         /// <summary>
@@ -27,12 +28,11 @@ namespace OxyPlot
         void Update(bool updateData);
 
         /// <summary>
-        /// Renders the plot with the specified rendering context.
+        /// Renders the plot with the specified rendering context within the given rectangle.
         /// </summary>
         /// <param name="rc">The rendering context.</param>
-        /// <param name="width">The width.</param>
-        /// <param name="height">The height.</param>
-        void Render(IRenderContext rc, double width, double height);
+        /// <param name="rect">The plot bounds.</param>
+        void Render(IRenderContext rc, OxyRect rect);
 
         /// <summary>
         /// Attaches this model to the specified plot view.

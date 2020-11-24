@@ -10,6 +10,7 @@
     public static class RectangleSeriesExamples
     {
         [Example("RectangleSeries")]
+        [DocumentationExample("Series/RectangleSeries")]
         public static PlotModel FromItems()
         {
             const int NumberOfItems = 10;
@@ -23,10 +24,10 @@
             });
 
             // create the series and add some rectangles with values
-            var s = new RectangleSeries();
-            for (int i = 0; i < NumberOfItems; i++)
+            var s = new RectangleSeries() { LabelFontSize = 12 };
+            for (int i = NumberOfItems - 1; i >= 0; i--)
             {
-                s.Items.Add(new RectangleItem(i, i * 2, i, i * 2, i));
+                s.Items.Add(new RectangleItem(-i * 0.5, i * 0.5, i * i, i * (i + 3), i));
             }
 
             model.Series.Add(s);

@@ -75,8 +75,12 @@ namespace OxyPlot.Axes
                 // the axis should be positioned at the origin of the perpendicular axis
                 axisPosition = perpendicularAxis.Transform(0);
 
-                var p0 = perpendicularAxis.Transform(perpendicularAxis.ActualMinimum);
-                var p1 = perpendicularAxis.Transform(perpendicularAxis.ActualMaximum);
+                var p0 = axis.IsHorizontal()
+                    ? perpendicularAxis.ScreenMin.Y
+                    : perpendicularAxis.ScreenMin.X;
+                var p1 = axis.IsHorizontal()
+                    ? perpendicularAxis.ScreenMax.Y
+                    : perpendicularAxis.ScreenMax.X;
 
                 // find the min/max positions
                 var min = Math.Min(p0, p1);
@@ -95,7 +99,10 @@ namespace OxyPlot.Axes
                     var borderThickness = axis.IsHorizontal()
                         ? this.Plot.PlotAreaBorderThickness.Top
                         : this.Plot.PlotAreaBorderThickness.Left;
-                    if (borderThickness > 0 && this.Plot.PlotAreaBorderColor.IsVisible())
+                    var borderPosition = axis.IsHorizontal()
+                        ? this.Plot.PlotArea.Top
+                        : this.Plot.PlotArea.Left;
+                    if (axisPosition <= borderPosition && borderThickness > 0 && this.Plot.PlotAreaBorderColor.IsVisible())
                     {
                         // there is already a line here...
                         drawAxisLine = false;
@@ -109,7 +116,10 @@ namespace OxyPlot.Axes
                     var borderThickness = axis.IsHorizontal()
                         ? this.Plot.PlotAreaBorderThickness.Bottom
                         : this.Plot.PlotAreaBorderThickness.Right;
-                    if (borderThickness > 0 && this.Plot.PlotAreaBorderColor.IsVisible())
+                    var borderPosition = axis.IsHorizontal()
+                        ? this.Plot.PlotArea.Bottom
+                        : this.Plot.PlotArea.Right;
+                    if (axisPosition >= borderPosition && borderThickness > 0 && this.Plot.PlotAreaBorderColor.IsVisible())
                     {
                         // there is already a line here...
                         drawAxisLine = false;
@@ -206,7 +216,7 @@ namespace OxyPlot.Axes
 
             if (axis.PositionAtZeroCrossing)
             {
-                middle = Lerp(axis.Transform(axis.ActualMaximum), axis.Transform(axis.ActualMinimum), axis.TitlePosition);
+                middle = Lerp(axis.Transform(axis.ClipMaximum), axis.Transform(axis.ClipMinimum), axis.TitlePosition);
             }
 
             switch (axis.Position)
@@ -288,8 +298,8 @@ namespace OxyPlot.Axes
         {
             double eps = axis.ActualMinorStep * 1e-3;
 
-            double actualMinimum = axis.ActualMinimum;
-            double actualMaximum = axis.ActualMaximum;
+            double clipMinimum = axis.ClipMinimum;
+            double clipMaximum = axis.ClipMaximum;
 
             double plotAreaLeft = this.Plot.PlotArea.Left;
             double plotAreaRight = this.Plot.PlotArea.Right;
@@ -322,11 +332,6 @@ namespace OxyPlot.Axes
 
             foreach (double value in this.MajorTickValues)
             {
-                if (value < actualMinimum - eps || value > actualMaximum + eps)
-                {
-                    continue;
-                }
-
                 if (dontRenderZero && Math.Abs(value) < eps)
                 {
                     continue;
@@ -376,7 +381,7 @@ namespace OxyPlot.Axes
             // Render the axis labels (numbers or category names)
             foreach (double value in this.MajorLabelValues)
             {
-                if (value < actualMinimum - eps || value > actualMaximum + eps)
+                if (value < clipMinimum - eps || value > clipMaximum + eps)
                 {
                     continue;
                 }
@@ -445,7 +450,7 @@ namespace OxyPlot.Axes
 
                 foreach (double value in axis.ExtraGridlines)
                 {
-                    if (!this.IsWithin(value, actualMinimum, actualMaximum))
+                    if (!this.IsWithin(value, clipMinimum, clipMaximum))
                     {
                         continue;
                     }
@@ -463,7 +468,7 @@ namespace OxyPlot.Axes
                         plotAreaBottom);
                 }
 
-                this.RenderContext.DrawLineSegments(extraSegments, this.ExtraPen);
+                this.RenderContext.DrawLineSegments(extraSegments, this.ExtraPen, axis.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
             }
 
             if (drawAxisLine)
@@ -472,31 +477,33 @@ namespace OxyPlot.Axes
                 if (isHorizontal)
                 {
                     this.RenderContext.DrawLine(
-                        axis.Transform(actualMinimum),
+                        axis.Transform(clipMinimum),
                         axisPosition,
-                        axis.Transform(actualMaximum),
+                        axis.Transform(clipMaximum),
                         axisPosition,
-                        this.AxislinePen);
+                        this.AxislinePen,
+                        axis.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
                 }
                 else
                 {
                     this.RenderContext.DrawLine(
                         axisPosition,
-                        axis.Transform(actualMinimum),
+                        axis.Transform(clipMinimum),
                         axisPosition,
-                        axis.Transform(actualMaximum),
-                        this.AxislinePen);
+                        axis.Transform(clipMaximum),
+                        this.AxislinePen,
+                        axis.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
                 }
             }
 
             if (this.MajorPen != null)
             {
-                this.RenderContext.DrawLineSegments(majorSegments, this.MajorPen);
+                this.RenderContext.DrawLineSegments(majorSegments, this.MajorPen, axis.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
             }
 
             if (this.MajorTickPen != null)
             {
-                this.RenderContext.DrawLineSegments(majorTickSegments, this.MajorTickPen);
+                this.RenderContext.DrawLineSegments(majorTickSegments, this.MajorTickPen, axis.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
             }
         }
 
@@ -508,8 +515,8 @@ namespace OxyPlot.Axes
         protected virtual void RenderMinorItems(Axis axis, double axisPosition)
         {
             double eps = axis.ActualMinorStep * 1e-3;
-            double actualMinimum = axis.ActualMinimum;
-            double actualMaximum = axis.ActualMaximum;
+            double actualMinimum = axis.ClipMinimum;
+            double actualMaximum = axis.ClipMaximum;
 
             double plotAreaLeft = this.Plot.PlotArea.Left;
             double plotAreaRight = this.Plot.PlotArea.Right;
@@ -540,16 +547,6 @@ namespace OxyPlot.Axes
 
             foreach (double value in this.MinorTickValues)
             {
-                if (value < actualMinimum - eps || value > actualMaximum + eps)
-                {
-                    continue;
-                }
-
-                if (this.MajorTickValues.Contains(value))
-                {
-                    continue;
-                }
-
                 if (axis.PositionAtZeroCrossing && Math.Abs(value) < eps)
                 {
                     continue;
@@ -602,12 +599,12 @@ namespace OxyPlot.Axes
             // Draw all the line segments);
             if (this.MinorPen != null)
             {
-                this.RenderContext.DrawLineSegments(minorSegments, this.MinorPen);
+                this.RenderContext.DrawLineSegments(minorSegments, this.MinorPen, axis.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
             }
 
             if (this.MinorTickPen != null)
             {
-                this.RenderContext.DrawLineSegments(minorTickSegments, this.MinorTickPen);
+                this.RenderContext.DrawLineSegments(minorTickSegments, this.MinorTickPen, axis.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
             }
         }
 
@@ -646,8 +643,8 @@ namespace OxyPlot.Axes
                 {
                     foreach (var perpAxis in perpAxes)
                     {
-                        segments.Add(new ScreenPoint(transformedValue, perpAxis.Transform(perpAxis.ActualMinimum)));
-                        segments.Add(new ScreenPoint(transformedValue, perpAxis.Transform(perpAxis.ActualMaximum)));
+                        segments.Add(new ScreenPoint(transformedValue, perpAxis.Transform(perpAxis.ClipMinimum)));
+                        segments.Add(new ScreenPoint(transformedValue, perpAxis.Transform(perpAxis.ClipMaximum)));
                     }
                 }
             }
@@ -662,8 +659,8 @@ namespace OxyPlot.Axes
                 {
                     foreach (var perpAxis in perpAxes)
                     {
-                        segments.Add(new ScreenPoint(perpAxis.Transform(perpAxis.ActualMinimum), transformedValue));
-                        segments.Add(new ScreenPoint(perpAxis.Transform(perpAxis.ActualMaximum), transformedValue));
+                        segments.Add(new ScreenPoint(perpAxis.Transform(perpAxis.ClipMinimum), transformedValue));
+                        segments.Add(new ScreenPoint(perpAxis.Transform(perpAxis.ClipMaximum), transformedValue));
                     }
                 }
             }

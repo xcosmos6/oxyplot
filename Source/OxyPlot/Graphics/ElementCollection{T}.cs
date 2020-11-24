@@ -17,7 +17,7 @@ namespace OxyPlot
     /// Represents a collection of <see cref="Element" /> objects.
     /// </summary>
     /// <typeparam name="T">The type of the elements.</typeparam>
-    public class ElementCollection<T> : IList<T> where T : Element
+    public class ElementCollection<T> : IList<T>, IReadOnlyList<T> where T : Element
     {
         /// <summary>
         /// The parent <see cref="Model" />.
@@ -41,6 +41,7 @@ namespace OxyPlot
         /// <summary>
         /// Raised when the collection changes.
         /// </summary>
+        [Obsolete("May be removed in v4.0 (#111)")]
         public event EventHandler<ElementCollectionChangedEventArgs<T>> CollectionChanged;
 
         /// <summary>

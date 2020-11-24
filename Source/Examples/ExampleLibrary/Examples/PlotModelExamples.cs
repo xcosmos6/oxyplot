@@ -9,6 +9,7 @@ namespace ExampleLibrary
     using OxyPlot;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using System;
 
     [Examples("PlotModel examples")]
     public static class PlotModelExamples
@@ -67,10 +68,19 @@ namespace ExampleLibrary
             return model;
         }
 
-        [Example("PlotMargins = (100,20,100,50)")]
-        public static PlotModel PlotMargins()
+        [Example("TitleClippingOff")]
+        public static PlotModel TitleClippingOff()
         {
-            var model = new PlotModel { Title = "PlotMargins = (100,20,100,50)", PlotMargins = new OxyThickness(100, 20, 100, 50) };
+            var model = new PlotModel { Title = "This is a very long title to illustrate that title clipping is necessary, because currently it's not clipped.", ClipTitle = false };
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left });
+            return model;
+        }
+
+        [Example("TitleClipping60")]
+        public static PlotModel TitleClipping60()
+        {
+            var model = new PlotModel { Title = "This is a very long title, that shows that title clippling is working with crrently 60% of title area", TitleClippingLength = 0.6};
             model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
             model.Axes.Add(new LinearAxis { Position = AxisPosition.Left });
             return model;
@@ -187,6 +197,46 @@ namespace ExampleLibrary
             var model = new PlotModel();
             model.Axes.Add(new LinearAxis());
             model.Series.Add(new LineSeries { XAxisKey = "invalidKey" });
+            return model;
+        }
+
+        [Example("Exception handling (with clipping)")]
+        public static PlotModel ExceptionClipping()
+        {
+            var model = new PlotModel();
+            var annotation = new RenderingCapabilities.DelegateAnnotation(rc =>
+            {
+                rc.PushClip(new OxyRect(50, 50, 50, 50));
+                throw new Exception("This Exception should be completely visible and not clipped by the previously pushed clipping rectangle.");
+            });
+
+            model.Annotations.Add(annotation);
+            return model;
+        }
+
+        [Example("Unbalanced clipping (push)")]
+        public static PlotModel UnbalancedClippingPush()
+        {
+            var model = new PlotModel();
+            var annotation = new RenderingCapabilities.DelegateAnnotation(rc =>
+            {
+                rc.PushClip(new OxyRect(50, 50, 50, 50));
+            });
+
+            model.Annotations.Add(annotation);
+            return model;
+        }
+
+        [Example("Unbalanced clipping (pop)")]
+        public static PlotModel UnbalancedClippingPop()
+        {
+            var model = new PlotModel();
+            var annotation = new RenderingCapabilities.DelegateAnnotation(rc =>
+            {
+                rc.PopClip();
+            });
+
+            model.Annotations.Add(annotation);
             return model;
         }
     }

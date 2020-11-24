@@ -13,18 +13,16 @@ namespace OxyPlot.Series
     using System.Collections.Generic;
     using System.Linq;
 
-    using Axes;
-
     /// <summary>
     /// Represents a series that can be bound to a collection of <see cref="HistogramItem"/>.
     /// </summary>
     public class HistogramSeries : XYAxisSeries
     {
         /// <summary>
-        /// The default tracker format string
+        /// The default tracker format string.
         /// </summary>
-        public new const string DefaultTrackerFormatString = "Start: {5}\nEnd: {6}\nValue: {7}\nArea: {8}";
-        
+        public new const string DefaultTrackerFormatString = "Start: {5}\nEnd: {6}\nValue: {7}\nArea: {8}\nCount: {9}";
+
         /// <summary>
         /// The default fill color.
         /// </summary>
@@ -39,22 +37,21 @@ namespace OxyPlot.Series
         /// Specifies if the <see cref="actualItems" /> list can be modified.
         /// </summary>
         private bool ownsActualItems;
-        
+
         /// <summary>
         /// Initializes a new instance of the <see cref="HistogramSeries" /> class.
         /// </summary>
         public HistogramSeries()
         {
             this.FillColor = OxyColors.Automatic;
-            this.NegativeFillColor = OxyColors.Undefined;
             this.StrokeColor = OxyColors.Black;
             this.StrokeThickness = 0;
             this.TrackerFormatString = DefaultTrackerFormatString;
             this.LabelFormatString = null;
-            this.LabelFontSize = 0;
             this.LabelPlacement = LabelPlacement.Outside;
+            this.ColorMapping = this.GetDefaultColor;
         }
-        
+
         /// <summary>
         /// Gets or sets the color of the interior of the bars.
         /// </summary>
@@ -65,16 +62,7 @@ namespace OxyPlot.Series
         /// Gets the actual fill color.
         /// </summary>
         /// <value>The actual color.</value>
-        public OxyColor ActualFillColor
-        {
-            get { return this.FillColor.GetActualColor(this.defaultFillColor); }
-        }
-        
-        /// <summary>
-        /// Gets or sets the color of the interior of the bars when the value is negative.
-        /// </summary>
-        /// <value>The color.</value>
-        public OxyColor NegativeFillColor { get; set; }
+        public OxyColor ActualFillColor => this.FillColor.GetActualColor(this.defaultFillColor);
 
         /// <summary>
         /// Gets or sets the color of the border around the bars.
@@ -102,15 +90,8 @@ namespace OxyPlot.Series
         /// Gets or sets the format string for the cell labels. The default value is <c>0.00</c>.
         /// </summary>
         /// <value>The format string.</value>
-        /// <remarks>The label format string is only used when <see cref="LabelFontSize" /> is greater than 0.</remarks>
         public string LabelFormatString { get; set; }
 
-        /// <summary>
-        /// Gets or sets the font size of the labels. The default value is <c>0</c> (labels not visible).
-        /// </summary>
-        /// <value>The font size relative to the cell height.</value>
-        public double LabelFontSize { get; set; }
-        
         /// <summary>
         /// Gets or sets the label margins.
         /// </summary>
@@ -122,15 +103,15 @@ namespace OxyPlot.Series
         public LabelPlacement LabelPlacement { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating whether the tracker can interpolate points.
+        /// Gets or sets the delegate used to map from histogram item to color.
         /// </summary>
-        public bool CanTrackerInterpolatePoints { get; set; }
-        
+        public Func<HistogramItem, OxyColor> ColorMapping { get; set; }
+
         /// <summary>
         /// Gets or sets the delegate used to map from <see cref="ItemsSeries.ItemsSource" /> to <see cref="HistogramSeries" />. The default is <c>null</c>.
         /// </summary>
         /// <value>The mapping.</value>
-        /// <remarks>Example: series1.Mapping = item => new HistogramItem((double)item.BinStart, (double)item.BinStart + item.BinWidth, (double)item.Count);</remarks>
+        /// <remarks>Example: series1.Mapping = item => new HistogramItem((double)item.BinStart, (double)item.BinStart + item.BinWidth, (double)item.Count / totalCount, item.Count).</remarks>
         public Func<object, HistogramItem> Mapping { get; set; }
 
         /// <summary>
@@ -144,37 +125,6 @@ namespace OxyPlot.Series
         /// </summary>
         /// <value>A list of <see cref="HistogramItem" />.</value>
         protected List<HistogramItem> ActualItems => this.ItemsSource != null ? this.actualItems : this.Items;
-        
-        /// <summary>
-        /// Transforms data space coordinates to orientated screen space coordinates.
-        /// </summary>
-        /// <param name="x">The x coordinate.</param>
-        /// <param name="y">The y coordinate.</param>
-        /// <returns>The transformed point.</returns>
-        public new ScreenPoint Transform(double x, double y)
-        {
-            return this.Orientate(base.Transform(x, y));
-        }
-
-        /// <summary>
-        /// Transforms data space coordinates to orientated screen space coordinates.
-        /// </summary>
-        /// <param name="point">The point to transform.</param>
-        /// <returns>The transformed point.</returns>
-        public new ScreenPoint Transform(DataPoint point)
-        {
-            return this.Orientate(base.Transform(point));
-        }
-
-        /// <summary>
-        /// Transforms orientated screen space coordinates to data space coordinates.
-        /// </summary>
-        /// <param name="point">The point to inverse transform.</param>
-        /// <returns>The inverse transformed point.</returns>
-        public new DataPoint InverseTransform(ScreenPoint point)
-        {
-            return base.InverseTransform(this.Orientate(point));
-        }
 
         /// <summary>
         /// Renders the series on the specified rendering context.
@@ -182,16 +132,8 @@ namespace OxyPlot.Series
         /// <param name="rc">The rendering context.</param>
         public override void Render(IRenderContext rc)
         {
-            var actualBins = this.ActualItems;
-
             this.VerifyAxes();
-
-            var clippingRect = this.GetClippingRect();
-            rc.SetClip(clippingRect);
-
-            this.RenderBins(rc, clippingRect, actualBins);
-
-            rc.ResetClip();
+            this.RenderBins(rc, this.ActualItems);
         }
 
         /// <summary>
@@ -208,25 +150,30 @@ namespace OxyPlot.Series
             {
                 return null;
             }
-            
-            if (this.ActualItems != null)
+
+            if (this.ActualItems == null)
             {
-                // iterate through the HistogramItems and return the first one that contains the point
-                foreach (var item in this.ActualItems)
+                return null;
+            }
+
+            // iterate through the HistogramItems and return the first one that contains the point
+            for (var i = 0; i < this.ActualItems.Count; i++)
+            {
+                var item = this.ActualItems[i];
+                if (item.Contains(p))
                 {
-                    if (item.Contains(p))
+                    var itemsSourceItem = this.GetItem(i);
+                    return new TrackerHitResult
                     {
-                        return new TrackerHitResult
-                        {
-                            Series = this,
-                            DataPoint = p,
-                            Position = point,
-                            Item = null,
-                            Index = -1,
-                            Text = StringHelper.Format(
+                        Series = this,
+                        DataPoint = p,
+                        Position = point,
+                        Item = itemsSourceItem,
+                        Index = i,
+                        Text = StringHelper.Format(
                             this.ActualCulture,
                             this.TrackerFormatString,
-                            null,
+                            itemsSourceItem,
                             this.Title,
                             this.XAxis.Title ?? DefaultXAxisTitle,
                             this.XAxis.GetValue(p.X),
@@ -235,16 +182,16 @@ namespace OxyPlot.Series
                             item.RangeStart,
                             item.RangeEnd,
                             item.Value,
-                            item.Area)
-                        };
-                    }
+                            item.Area,
+                            item.Count),
+                    };
                 }
             }
 
             // if no HistogramItems contain the point, return null
             return null;
         }
-        
+
         /// <summary>
         /// Renders the legend symbol on the specified rendering context.
         /// </summary>
@@ -256,11 +203,12 @@ namespace OxyPlot.Series
             var ymid = (legendBox.Top + legendBox.Bottom) / 2;
             var height = (legendBox.Bottom - legendBox.Top) * 0.8;
             var width = height;
-            rc.DrawRectangleAsPolygon(
+            rc.DrawRectangle(
                 new OxyRect(xmid - (0.5 * width), ymid - (0.5 * height), width, height),
                 this.GetSelectableColor(this.ActualFillColor),
                 this.StrokeColor,
-                this.StrokeThickness);
+                this.StrokeThickness,
+                this.EdgeRenderingMode);
         }
 
         /// <summary>
@@ -285,14 +233,6 @@ namespace OxyPlot.Series
             {
                 this.defaultFillColor = this.PlotModel.GetDefaultColor();
             }
-        }
-
-        /// <summary>
-        /// Ensures that the axes of the series is defined.
-        /// </summary>
-        protected internal override void EnsureAxes()
-        {
-            base.EnsureAxes();
         }
 
         /// <summary>
@@ -331,26 +271,6 @@ namespace OxyPlot.Series
         }
 
         /// <summary>
-        /// Updates the axes to include the max and min of this series.
-        /// </summary>
-        protected internal override void UpdateAxisMaxMin()
-        {
-            base.UpdateAxisMaxMin();
-        }
-
-        /// <summary>
-        /// Gets the label for the specified cell.
-        /// </summary>
-        /// <param name="v">The value of the cell.</param>
-        /// <param name="i">The first index.</param>
-        /// <param name="j">The second index.</param>
-        /// <returns>The label string.</returns>
-        protected virtual string GetLabel(double v, int i, int j)
-        {
-            return v.ToString(this.LabelFormatString, this.ActualCulture);
-        }
-        
-        /// <summary>
         /// Gets the item at the specified index.
         /// </summary>
         /// <param name="i">The index of the item.</param>
@@ -370,128 +290,103 @@ namespace OxyPlot.Series
         /// Renders the points as line, broken line and markers.
         /// </summary>
         /// <param name="rc">The rendering context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
         /// <param name="items">The Items to render.</param>
-        protected void RenderBins(IRenderContext rc, OxyRect clippingRect, ICollection<HistogramItem> items)
+        protected void RenderBins(IRenderContext rc, ICollection<HistogramItem> items)
         {
             foreach (var item in items)
             {
-                // Get the color of the item
-                var actualFillColor = this.ActualFillColor;
-                if (item.Value < 0 && !this.NegativeFillColor.IsUndefined())
-                {
-                    actualFillColor = this.NegativeFillColor;
-                }
+                var actualFillColor = this.GetItemFillColor(item);
 
                 // transform the data points to screen points
-                var s00 = this.Transform(item.RangeStart, 0);
-                var s11 = this.Transform(item.RangeEnd, item.Height);
+                var p1 = this.Transform(item.RangeStart, 0);
+                var p2 = this.Transform(item.RangeEnd, item.Height);
 
-                var pointa = new ScreenPoint(s00.X, s00.Y);
-                var pointb = new ScreenPoint(s11.X, s11.Y);
-                var rectrect = new OxyRect(pointa, pointb);
+                var rectrect = new OxyRect(p1, p2);
 
-                rc.DrawClippedRectangleAsPolygon(clippingRect, rectrect, actualFillColor, this.StrokeColor, this.StrokeThickness);
-                
+                rc.DrawRectangle(
+                    rectrect, 
+                    actualFillColor, 
+                    this.StrokeColor, 
+                    this.StrokeThickness, 
+                    this.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
+
                 if (this.LabelFormatString != null)
                 {
-                    this.RenderLabel(rc, clippingRect, rectrect, item.Value, item);
+                    this.RenderLabel(rc, rectrect, item);
                 }
             }
         }
 
         /// <summary>
-        /// Gets the clipping rectangle, transposed if the X axis is vertically orientated.
+        /// Gets the fill color of the given <see cref="HistogramItem"/>.
         /// </summary>
-        /// <returns>The clipping rectangle.</returns>
-        protected new OxyRect GetClippingRect()
+        /// <param name="item">The item.</param>
+        /// <returns>The fill color of the item.</returns>
+        protected OxyColor GetItemFillColor(HistogramItem item)
         {
-            double minX = Math.Min(this.XAxis.ScreenMin.X, this.XAxis.ScreenMax.X);
-            double minY = Math.Min(this.YAxis.ScreenMin.Y, this.YAxis.ScreenMax.Y);
-            double maxX = Math.Max(this.XAxis.ScreenMin.X, this.XAxis.ScreenMax.X);
-            double maxY = Math.Max(this.YAxis.ScreenMin.Y, this.YAxis.ScreenMax.Y);
-
-            if (this.XAxis.IsVertical())
-            {
-                return new OxyRect(minY, minX, maxY - minY, maxX - minX);
-            }
-
-            return new OxyRect(minX, minY, maxX - minX, maxY - minY);
+            return item.Color.IsAutomatic() ? this.ColorMapping(item) : item.Color;
         }
-        
+
         /// <summary>
         /// Draws the label.
         /// </summary>
         /// <param name="rc">The render context.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
         /// <param name="rect">The column rectangle.</param>
-        /// <param name="value">The value.</param>
         /// <param name="item">The item.</param>
-        protected void RenderLabel(IRenderContext rc, OxyRect clippingRect, OxyRect rect, double value, object item)
+        protected void RenderLabel(IRenderContext rc, OxyRect rect, HistogramItem item)
         {
-            var s = StringHelper.Format(this.ActualCulture, this.LabelFormatString, item, value);
-            ScreenPoint pt;
+            var s = StringHelper.Format(this.ActualCulture, this.LabelFormatString, item, item.Value, item.RangeStart, item.RangeEnd, item.Area, item.Count);
+            DataPoint dp;
             VerticalAlignment va;
+            var ha = HorizontalAlignment.Center;
+
+            var midX = (item.RangeStart + item.RangeEnd) / 2;
+            var sign = Math.Sign(item.Value);
+            var dy = sign * this.LabelMargin;
+
             switch (this.LabelPlacement)
             {
                 case LabelPlacement.Inside:
-                    pt = new ScreenPoint((rect.Left + rect.Right) / 2, rect.Top + this.LabelMargin);
-                    va = VerticalAlignment.Top;
+                    dp = new DataPoint(midX, item.Value);
+                    va = (VerticalAlignment)(-sign);
                     break;
                 case LabelPlacement.Middle:
-                    pt = new ScreenPoint((rect.Left + rect.Right) / 2, (rect.Bottom + rect.Top) / 2);
+                    var p1 = this.InverseTransform(rect.TopLeft);
+                    var p2 = this.InverseTransform(rect.BottomRight);
+                    dp = new DataPoint(midX, (p1.Y + p2.Y) / 2);
                     va = VerticalAlignment.Middle;
                     break;
                 case LabelPlacement.Base:
-                    pt = new ScreenPoint((rect.Left + rect.Right) / 2, rect.Bottom - this.LabelMargin);
-                    va = VerticalAlignment.Bottom;
+                    dp = new DataPoint(midX, 0);
+                    dy = -dy;
+                    va = (VerticalAlignment)sign;
                     break;
-                default: // outside
-                    // Puts label below for negative series, above for positive
-                    if (value < 0)
-                    {
-                        pt = new ScreenPoint((rect.Left + rect.Right) / 2, rect.Bottom + this.LabelMargin);
-                        va = VerticalAlignment.Top;
-                    }
-                    else
-                    {
-                        pt = new ScreenPoint((rect.Left + rect.Right) / 2, rect.Top - this.LabelMargin);
-                        va = VerticalAlignment.Bottom;
-                    }
-
+                case LabelPlacement.Outside:
+                    dp = new DataPoint(midX, item.Value);
+                    dy = -dy;
+                    va = (VerticalAlignment)sign;
                     break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
 
-            rc.DrawClippedText(
-                clippingRect,
-                pt,
+            this.Orientate(ref ha, ref va);
+            var sp = this.Transform(dp) + this.Orientate(new ScreenVector(0, dy));
+
+            rc.DrawText(
+                sp,
                 s,
                 this.ActualTextColor,
                 this.ActualFont,
                 this.ActualFontSize,
                 this.ActualFontWeight,
                 0,
-                HorizontalAlignment.Center,
+                ha,
                 va);
         }
 
         /// <summary>
-        /// Transposes the ScreenPoint if the X axis is vertically orientated
-        /// </summary>
-        /// <param name="point">The <see cref="ScreenPoint" /> to orientate.</param>
-        /// <returns>The oriented point.</returns>
-        private ScreenPoint Orientate(ScreenPoint point)
-        {
-            if (this.XAxis.IsVertical())
-            {
-                point = new ScreenPoint(point.Y, point.X);
-            }
-
-            return point;
-        }
-
-        /// <summary>
-        /// Tests if a <see cref="DataPoint" /> is inside the heat map
+        /// Tests if a <see cref="DataPoint" /> is inside the histogram.
         /// </summary>
         /// <param name="p">The <see cref="DataPoint" /> to test.</param>
         /// <returns><c>True</c> if the point is inside the heat map.</returns>
@@ -501,7 +396,7 @@ namespace OxyPlot.Series
 
             return p.X >= this.MinX && p.X <= this.MaxX && p.Y >= this.MinY && p.Y <= this.MaxY;
         }
-        
+
         /// <summary>
         /// Clears or creates the <see cref="actualItems"/> list.
         /// </summary>
@@ -517,6 +412,15 @@ namespace OxyPlot.Series
             }
 
             this.ownsActualItems = true;
+        }
+
+        /// <summary>
+        /// Gets the default color for a HistogramItem.
+        /// </summary>
+        /// <returns>The default color.</returns>
+        private OxyColor GetDefaultColor(HistogramItem item)
+        {
+            return this.ActualFillColor;
         }
 
         /// <summary>
@@ -536,8 +440,7 @@ namespace OxyPlot.Series
                 return;
             }
 
-            var sourceAsListOfHistogramItems = this.ItemsSource as List<HistogramItem>;
-            if (sourceAsListOfHistogramItems != null)
+            if (this.ItemsSource is List<HistogramItem> sourceAsListOfHistogramItems)
             {
                 this.actualItems = sourceAsListOfHistogramItems;
                 this.ownsActualItems = false;
@@ -546,8 +449,7 @@ namespace OxyPlot.Series
 
             this.ClearActualItems();
 
-            var sourceAsEnumerableHistogramItems = this.ItemsSource as IEnumerable<HistogramItem>;
-            if (sourceAsEnumerableHistogramItems != null)
+            if (this.ItemsSource is IEnumerable<HistogramItem> sourceAsEnumerableHistogramItems)
             {
                 this.actualItems.AddRange(sourceAsEnumerableHistogramItems);
             }

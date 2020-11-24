@@ -7,7 +7,11 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
+#if OXYPLOT_COREDRAWING
+namespace OxyPlot.Core.Drawing
+#else
 namespace OxyPlot.WindowsForms
+#endif
 {
     using System;
     using System.Collections.Generic;
@@ -23,7 +27,7 @@ namespace OxyPlot.WindowsForms
     /// <summary>
     /// The graphics render context.
     /// </summary>
-    public class GraphicsRenderContext : RenderContextBase, IDisposable
+    public class GraphicsRenderContext : ClippingRenderContext, IDisposable
     {
         /// <summary>
         /// The font size factor.
@@ -85,24 +89,15 @@ namespace OxyPlot.WindowsForms
             this.g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
         }
 
-        /// <summary>
-        /// Draws an ellipse.
-        /// </summary>
-        /// <param name="rect">The rectangle.</param>
-        /// <param name="fill">The fill color.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The thickness.</param>
-        public override void DrawEllipse(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness)
+        /// <inheritdoc/>
+        public override void DrawEllipse(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness, EdgeRenderingMode edgeRenderingMode)
         {
             var isStroked = stroke.IsVisible() && thickness > 0;
 
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForEllipse(edgeRenderingMode));
+
             if (fill.IsVisible())
             {
-                if (!isStroked)
-                {
-                    this.g.SmoothingMode = SmoothingMode.HighQuality;
-                }
-
                 this.g.FillEllipse(this.GetCachedBrush(fill), (float)rect.Left, (float)rect.Top, (float)rect.Width, (float)rect.Height);
             }
 
@@ -112,62 +107,45 @@ namespace OxyPlot.WindowsForms
             }
             
             var pen = this.GetCachedPen(stroke, thickness);
-            this.g.SmoothingMode = SmoothingMode.HighQuality;
             this.g.DrawEllipse(pen, (float)rect.Left, (float)rect.Top, (float)rect.Width, (float)rect.Height);
         }
 
-        /// <summary>
-        /// Draws the polyline from the specified points.
-        /// </summary>
-        /// <param name="points">The points.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The stroke thickness.</param>
-        /// <param name="dashArray">The dash array.</param>
-        /// <param name="lineJoin">The line join type.</param>
-        /// <param name="aliased">if set to <c>true</c> the shape will be aliased.</param>
+        /// <inheritdoc/>
         public override void DrawLine(
             IList<ScreenPoint> points,
             OxyColor stroke,
             double thickness,
+            EdgeRenderingMode edgeRenderingMode,
             double[] dashArray,
-            OxyPlot.LineJoin lineJoin,
-            bool aliased)
+            OxyPlot.LineJoin lineJoin)
         {
             if (stroke.IsInvisible() || thickness <= 0 || points.Count < 2)
             {
                 return;
             }
 
-            this.g.SmoothingMode = aliased ? SmoothingMode.None : SmoothingMode.HighQuality;
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForLine(edgeRenderingMode, points));
+
             var pen = this.GetCachedPen(stroke, thickness, dashArray, lineJoin);
             this.g.DrawLines(pen, this.ToPoints(points));
         }
 
-        /// <summary>
-        /// Draws the polygon from the specified points. The polygon can have stroke and/or fill.
-        /// </summary>
-        /// <param name="points">The points.</param>
-        /// <param name="fill">The fill color.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The stroke thickness.</param>
-        /// <param name="dashArray">The dash array.</param>
-        /// <param name="lineJoin">The line join type.</param>
-        /// <param name="aliased">if set to <c>true</c> the shape will be aliased.</param>
+        /// <inheritdoc/>
         public override void DrawPolygon(
             IList<ScreenPoint> points,
             OxyColor fill,
             OxyColor stroke,
             double thickness,
+            EdgeRenderingMode edgeRenderingMode,
             double[] dashArray,
-            OxyPlot.LineJoin lineJoin,
-            bool aliased)
+            OxyPlot.LineJoin lineJoin)
         {
             if (points.Count < 2)
             {
                 return;
             }
 
-            this.g.SmoothingMode = aliased ? SmoothingMode.None : SmoothingMode.HighQuality;
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForLine(edgeRenderingMode, points));
 
             var pts = this.ToPoints(points);
             if (fill.IsVisible())
@@ -184,15 +162,11 @@ namespace OxyPlot.WindowsForms
             this.g.DrawPolygon(pen, pts);
         }
 
-        /// <summary>
-        /// Draws the rectangle.
-        /// </summary>
-        /// <param name="rect">The rectangle.</param>
-        /// <param name="fill">The fill color.</param>
-        /// <param name="stroke">The stroke color.</param>
-        /// <param name="thickness">The stroke thickness.</param>
-        public override void DrawRectangle(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness)
+        /// <inheritdoc/>
+        public override void DrawRectangle(OxyRect rect, OxyColor fill, OxyColor stroke, double thickness, EdgeRenderingMode edgeRenderingMode)
         {
+            this.SetSmoothingMode(this.ShouldUseAntiAliasingForRect(edgeRenderingMode));
+
             if (fill.IsVisible())
             {
                 this.g.FillRectangle(
@@ -244,7 +218,7 @@ namespace OxyPlot.WindowsForms
             {
                 this.stringFormat.Alignment = StringAlignment.Near;
                 this.stringFormat.LineAlignment = StringAlignment.Near;
-                var size = this.g.MeasureString(text, font, int.MaxValue, this.stringFormat);
+                var size = Ceiling(this.g.MeasureString(text, font, int.MaxValue, this.stringFormat));
                 if (maxSize != null)
                 {
                     if (size.Width > maxSize.Value.Width)
@@ -321,7 +295,7 @@ namespace OxyPlot.WindowsForms
             {
                 this.stringFormat.Alignment = StringAlignment.Near;
                 this.stringFormat.LineAlignment = StringAlignment.Near;
-                var size = this.g.MeasureString(text, font, int.MaxValue, this.stringFormat);
+                var size = Ceiling(this.g.MeasureString(text, font, int.MaxValue, this.stringFormat));
                 return new OxySize(size.Width, size.Height);
             }
         }
@@ -388,21 +362,14 @@ namespace OxyPlot.WindowsForms
             }
         }
 
-        /// <summary>
-        /// Sets the clip rectangle.
-        /// </summary>
-        /// <param name="rect">The clip rectangle.</param>
-        /// <returns>True if the clip rectangle was set.</returns>
-        public override bool SetClip(OxyRect rect)
+        /// <inheritdoc/>
+        protected override void SetClip(OxyRect rect)
         {
             this.g.SetClip(rect.ToRect(false));
-            return true;
         }
 
-        /// <summary>
-        /// Resets the clip rectangle.
-        /// </summary>
-        public override void ResetClip()
+        /// <inheritdoc/>
+        protected override void ResetClip()
         {
             this.g.ResetClip();
         }
@@ -445,6 +412,17 @@ namespace OxyPlot.WindowsForms
         private static Font CreateFont(string fontFamily, double fontSize, FontStyle fontStyle)
         {
             return new Font(fontFamily, (float)fontSize * FontsizeFactor, fontStyle);
+        }
+
+        /// <summary>
+        /// Returns the ceiling of the given <see cref="SizeF"/> as a <see cref="SizeF"/>.
+        /// </summary>
+        /// <param name="size">The size.</param>
+        /// <returns>A <see cref="SizeF"/>.</returns>
+        private static SizeF Ceiling(SizeF size)
+        {
+            var ceiling = Size.Ceiling(size);
+            return new SizeF(ceiling.Width, ceiling.Height);
         }
 
         /// <summary>
@@ -546,6 +524,15 @@ namespace OxyPlot.WindowsForms
             }
 
             return pen;
+        }
+
+        /// <summary>
+        /// Sets the smoothing mode.
+        /// </summary>
+        /// <param name="useAntiAliasing">A value indicating whether to use Anti-Aliasing.</param>
+        private void SetSmoothingMode(bool useAntiAliasing)
+        {
+            this.g.SmoothingMode = useAntiAliasing ? SmoothingMode.HighQuality : SmoothingMode.None;
         }
 
         /// <summary>

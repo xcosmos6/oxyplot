@@ -17,7 +17,7 @@ namespace OxyPlot
     /// <summary>
     /// Provides extension methods for <see cref="OxyColor" />.
     /// </summary>
-    /// <remarks>These are pure methods. They could also be placed in the <see cref="OxyColor" /> type with a <see cref="System.Diagnostics.Contracts.PureAttribute" />.</remarks>
+    /// <remarks>These are pure methods. They could also be placed in the <see cref="OxyColor" /> type with a PureAttribute.</remarks>
     public static class OxyColorExtensions
     {
         /// <summary>
@@ -175,9 +175,14 @@ namespace OxyPlot
         public static string GetColorName(this OxyColor color)
         {
             var t = typeof(OxyColors);
+#if NET40
+            var colors = t.GetProperties(BindingFlags.Static | BindingFlags.Public);
+            var colorField = colors.FirstOrDefault(field => color.Equals(field.GetValue(null, null)));
+#else
             var colors = t.GetRuntimeFields().Where(fi => fi.IsPublic && fi.IsStatic);
-
             var colorField = colors.FirstOrDefault(field => color.Equals(field.GetValue(null)));
+#endif
+
             return colorField != null ? colorField.Name : null;
         }
     }

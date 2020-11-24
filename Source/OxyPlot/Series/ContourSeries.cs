@@ -11,6 +11,7 @@ namespace OxyPlot.Series
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
 
     /// <summary>
@@ -45,9 +46,9 @@ namespace OxyPlot.Series
         public ContourSeries()
         {
             this.ContourLevelStep = double.NaN;
-
-            this.LabelSpacing = double.NaN;
             this.LabelStep = 1;
+            this.MultiLabel = false;
+            this.LabelSpacing = 150;
             this.LabelBackground = OxyColor.FromAColor(220, OxyColors.White);
 
             this.Color = OxyColors.Automatic;
@@ -80,7 +81,7 @@ namespace OxyPlot.Series
 
         /// <summary>
         /// Gets or sets the contour level step size.
-        /// This property is not used if the ContourLevels vector is set.
+        /// This property is not used if the <see cref="ContourLevels"/> vector is set.
         /// </summary>
         /// <value>The contour level step size.</value>
         public double ContourLevelStep { get; set; }
@@ -118,13 +119,18 @@ namespace OxyPlot.Series
         public string LabelFormatString { get; set; }
 
         /// <summary>
-        /// Gets or sets the label spacing.
+        /// Gets or sets the label spacing, which is the space between labels on the same contour. Not used if <see cref="MultiLabel"/>==<see langword="false"/>
         /// </summary>
         /// <value>The label spacing.</value>
         public double LabelSpacing { get; set; }
 
         /// <summary>
-        /// Gets or sets the label step (number of contours per label).
+        /// Gets or sets a value indicating whether multiple labels should be displayed per Contour. The default value is <c>false</c>
+        /// </summary>
+        public bool MultiLabel { get; set; }
+
+        /// <summary>
+        /// Gets or sets the interval between labeled contours. LabelStep = 1 is default and it means that all contours have a label
         /// </summary>
         /// <value>The label step.</value>
         public int LabelStep { get; set; }
@@ -183,6 +189,7 @@ namespace OxyPlot.Series
                     double step = range / 20;
                     double stepExp = Math.Round(Math.Log(Math.Abs(step), 10));
                     actualStep = Math.Pow(10, Math.Floor(stepExp));
+                    this.ContourLevelStep = actualStep;
                 }
 
                 max = Math.Round(actualStep * (int)Math.Ceiling(max / actualStep), 14);
@@ -234,7 +241,7 @@ namespace OxyPlot.Series
                     {
                         result = r;
                         result.Text = StringHelper.Format(
-                            this.ActualCulture, 
+                            this.ActualCulture,
                             this.TrackerFormatString,
                             null,
                             this.Title,
@@ -269,34 +276,90 @@ namespace OxyPlot.Series
 
             this.VerifyAxes();
 
-            var clippingRect = this.GetClippingRect();
-            rc.SetClip(clippingRect);
-
             var contourLabels = new List<ContourLabel>();
             var dashArray = this.LineStyle.GetDashArray();
 
             foreach (var contour in this.contours)
             {
-                if (this.StrokeThickness > 0 && this.LineStyle != LineStyle.None)
+                if (this.StrokeThickness <= 0 || this.LineStyle == LineStyle.None)
                 {
-                    var transformedPoints = contour.Points.Select(this.Transform).ToArray();
-                    var strokeColor = contour.Color.GetActualColor(this.ActualColor);
+                    continue;
+                }
 
-                    rc.DrawClippedLine(
-                        clippingRect,
-                        transformedPoints,
-                        4,
-                        this.GetSelectableColor(strokeColor),
-                        this.StrokeThickness,
-                        dashArray,
-                        LineJoin.Miter,
-                        false);
+                var transformedPoints = contour.Points.Select(this.Transform).ToArray();
 
-                    // rc.DrawClippedPolygon(transformedPoints, clippingRect, 4, model.GetDefaultColor(), OxyColors.Black);
-                    if (transformedPoints.Length > 10)
+                var strokeColor = contour.Color.GetActualColor(this.ActualColor);
+
+                rc.DrawReducedLine(
+                    transformedPoints,
+                    4,
+                    this.GetSelectableColor(strokeColor),
+                    this.StrokeThickness,
+                    this.EdgeRenderingMode,
+                    dashArray,
+                    LineJoin.Miter);
+
+                // measure total contour length
+                var contourLength = 0.0;
+                for (int i = 1; i < transformedPoints.Length; i++)
+                {
+                    contourLength += (transformedPoints[i] - transformedPoints[i - 1]).Length;
+                }
+
+                // don't add label to contours, if ContourLevel is not close to LabelStep
+                if (transformedPoints.Length <= 10 || (Math.Round(contour.ContourLevel / this.ContourLevelStep) % this.LabelStep != 0))
+                {
+                    continue;
+                }
+
+                if (!this.MultiLabel)
+                {
+                    this.AddContourLabels(contour, transformedPoints, contourLabels, (transformedPoints.Length - 1) * 0.5);
+                    continue;
+                }
+
+                // calculate how many labels fit per contour
+                var labelsCount = (int)(contourLength / this.LabelSpacing);
+                if (labelsCount == 0)
+                {
+                    this.AddContourLabels(contour, transformedPoints, contourLabels, (transformedPoints.Length - 1) * 0.5);
+                    continue;
+                }
+
+                var contourPartLength = 0.0;
+                var contourPartLengthOld = 0.0;
+                var intervalIndex = 1;
+                var contourPartLengthTarget = 0.0;
+                var contourFirstPartLengthTarget = (contourLength - ((labelsCount - 1) * this.LabelSpacing)) / 2;
+                for (var j = 0; j < labelsCount; j++)
+                {
+                    var labelIndex = 0.0;
+
+                    if (intervalIndex == 1)
                     {
-                        this.AddContourLabels(contour, transformedPoints, clippingRect, contourLabels);
+                        contourPartLengthTarget = contourFirstPartLengthTarget;
                     }
+                    else
+                    {
+                        contourPartLengthTarget = contourFirstPartLengthTarget + (j * this.LabelSpacing);
+                    }
+
+                    // find index of contour points where next label should be positioned
+                    for (var k = intervalIndex; k < transformedPoints.Length; k++)
+                    {
+                        contourPartLength += (transformedPoints[k] - transformedPoints[k - 1]).Length;
+
+                        if (contourPartLength > contourPartLengthTarget)
+                        {
+                            labelIndex = (k - 1) + ((contourPartLengthTarget - contourPartLengthOld) / (contourPartLength - contourPartLengthOld));
+                            intervalIndex = k + 1;
+                            break;
+                        }
+
+                        contourPartLengthOld = contourPartLength;
+                    }
+
+                    this.AddContourLabels(contour, transformedPoints, contourLabels, labelIndex);
                 }
             }
 
@@ -309,8 +372,6 @@ namespace OxyPlot.Series
             {
                 this.RenderLabel(rc, cl);
             }
-
-            rc.ResetClip();
         }
 
         /// <summary>
@@ -334,33 +395,6 @@ namespace OxyPlot.Series
             this.MaxX = this.ColumnCoordinates.Max();
             this.MinY = this.RowCoordinates.Min();
             this.MaxY = this.RowCoordinates.Max();
-        }
-
-        /// <summary>
-        /// Determines if two values are close.
-        /// </summary>
-        /// <param name="x1">The first value.</param>
-        /// <param name="x2">The second value.</param>
-        /// <param name="eps">The squared tolerance.</param>
-        /// <returns>True if the values are close.</returns>
-        private static bool AreClose(double x1, double x2, double eps = 1e-6)
-        {
-            double dx = x1 - x2;
-            return dx * dx < eps;
-        }
-
-        /// <summary>
-        /// Determines if two points are close.
-        /// </summary>
-        /// <param name="p0">The first point.</param>
-        /// <param name="p1">The second point.</param>
-        /// <param name="eps">The squared tolerance.</param>
-        /// <returns>True if the points are close.</returns>
-        private static bool AreClose(DataPoint p0, DataPoint p1, double eps = 1e-6)
-        {
-            double dx = p0.X - p1.X;
-            double dy = p0.Y - p1.Y;
-            return (dx * dx) + (dy * dy) < eps;
         }
 
         /// <summary>
@@ -391,31 +425,25 @@ namespace OxyPlot.Series
         /// </summary>
         /// <param name="contour">The contour.</param>
         /// <param name="pts">The points of the contour.</param>
-        /// <param name="clippingRect">The clipping rectangle.</param>
         /// <param name="contourLabels">The contour labels.</param>
-        private void AddContourLabels(Contour contour, ScreenPoint[] pts, OxyRect clippingRect, ICollection<ContourLabel> contourLabels)
+        /// <param name="labelIndex">The index of the point in the list of points, where the label should get added.</param>
+        private void AddContourLabels(Contour contour, ScreenPoint[] pts, ICollection<ContourLabel> contourLabels, double labelIndex)
         {
-            // todo: support label spacing and label step
             if (pts.Length < 2)
             {
                 return;
             }
 
             // Calculate position and angle of the label
-            double i = (pts.Length - 1) * 0.5;
-            var i0 = (int)i;
-            int i1 = i0 + 1;
-            double dx = pts[i1].X - pts[i0].X;
-            double dy = pts[i1].Y - pts[i0].Y;
-            double x = pts[i0].X + (dx * (i - i0));
-            double y = pts[i0].Y + (dy * (i - i0));
-            if (!clippingRect.Contains(x, y))
-            {
-                return;
-            }
+            var i0 = (int)labelIndex;
+            var i1 = i0 + 1;
+            var dx = pts[i1].X - pts[i0].X;
+            var dy = pts[i1].Y - pts[i0].Y;
+            var x = pts[i0].X + (dx * (labelIndex - i0));
+            var y = pts[i0].Y + (dy * (labelIndex - i0));
 
             var pos = new ScreenPoint(x, y);
-            double angle = Math.Atan2(dy, dx) * 180 / Math.PI;
+            var angle = Math.Atan2(dy, dx) * 180 / Math.PI;
             if (angle > 90)
             {
                 angle -= 180;
@@ -427,104 +455,129 @@ namespace OxyPlot.Series
             }
 
             var formatString = string.Concat("{0:", this.LabelFormatString, "}");
-            string text = string.Format(this.ActualCulture, formatString, contour.ContourLevel);
+            var text = string.Format(this.ActualCulture, formatString, contour.ContourLevel);
             contourLabels.Add(new ContourLabel { Position = pos, Angle = angle, Text = text });
-        }
-
-        /// <summary>
-        /// Finds the connected segment.
-        /// </summary>
-        /// <param name="point">The point.</param>
-        /// <param name="contourLevel">The contour level.</param>
-        /// <param name="eps">The distance tolerance.</param>
-        /// <param name="reverse">reverse the segment if set to <c>true</c>.</param>
-        /// <returns>The connected segment, or <c>null</c> if no segment was found.</returns>
-        private ContourSegment FindConnectedSegment(DataPoint point, double contourLevel, double eps, out bool reverse)
-        {
-            reverse = false;
-            foreach (var s in this.segments)
-            {
-                if (!AreClose(s.ContourLevel, contourLevel, eps))
-                {
-                    continue;
-                }
-
-                if (AreClose(point, s.StartPoint, eps))
-                {
-                    return s;
-                }
-
-                if (AreClose(point, s.EndPoint, eps))
-                {
-                    reverse = true;
-                    return s;
-                }
-            }
-
-            return null;
         }
 
         /// <summary>
         /// Joins the contour segments.
         /// </summary>
-        /// <param name="eps">The tolerance for segment ends to connect (squared distance).</param>
-        private void JoinContourSegments(double eps = 1e-10)
+        /// <param name="epsFactor">The tolerance for segment ends to connect (maximum allowed [length of distance vector] / [length of position vector]).</param>
+        private void JoinContourSegments(double epsFactor = 1e-10)
         {
-            // This is a simple, slow, naïve method - should be improved:
-            // http://stackoverflow.com/questions/1436091/joining-unordered-line-segments
             this.contours = new List<Contour>();
-            var contourPoints = new List<DataPoint>();
-            int contourPointsCount = 0;
 
-            ContourSegment firstSegment = null;
-            int segmentCount = this.segments.Count;
-            while (segmentCount > 0)
+            static IEnumerable<SegmentPoint> GetPoints(ContourSegment segment)
             {
-                ContourSegment segment1 = null, segment2 = null;
+                var p1 = new SegmentPoint(segment.StartPoint);
+                var p2 = new SegmentPoint(segment.EndPoint);
+                p1.Partner = p2;
+                p2.Partner = p1;
+                yield return p1;
+                yield return p2;
+            }
 
-                if (firstSegment != null)
+            foreach (var group in this.segments.GroupBy(p => p.ContourLevel))
+            {
+                var level = group.Key;
+                var points = group.SelectMany(GetPoints).OrderBy(p => p.Point.X).ToList();
+
+                // first, go through the sorted points, find identical points and join them together 
+                for (var i = 0; i < points.Count - 1; i++)
                 {
-                    bool reverse;
-
-                    // Find a segment that is connected to the head of the contour
-                    segment1 = this.FindConnectedSegment(contourPoints[0], firstSegment.ContourLevel, eps, out reverse);
-                    if (segment1 != null)
+                    var currentPoint = points[i];
+                    if (currentPoint.Join != null)
                     {
-                        contourPoints.Insert(0, reverse ? segment1.StartPoint : segment1.EndPoint);
-                        contourPointsCount++;
-                        this.segments.Remove(segment1);
-                        segmentCount--;
+                        continue;
                     }
 
-                    // Find a segment that is connected to the tail of the contour
-                    segment2 = this.FindConnectedSegment(contourPoints[contourPointsCount - 1], firstSegment.ContourLevel, eps, out reverse);
-                    if (segment2 != null)
+                    var positionVectorLength = Math.Sqrt(Math.Pow(currentPoint.Point.X, 2) + Math.Pow(currentPoint.Point.Y, 2));
+                    var eps = positionVectorLength * epsFactor;
+
+                    var maxX = currentPoint.Point.X + eps;
+                    var i2 = i + 1;
+                    SegmentPoint joinPoint;
+
+                    // search for a point with the same coordinates (within eps) as the current point
+                    // as points are sorted by X, we typically only need to check the point immediately following the current point
+                    while (true)
                     {
-                        contourPoints.Add(reverse ? segment2.StartPoint : segment2.EndPoint);
-                        contourPointsCount++;
-                        this.segments.Remove(segment2);
-                        segmentCount--;
+                        if (i2 >= points.Count)
+                        {
+                            joinPoint = null;
+                            break;
+                        }
+
+                        joinPoint = points[i2];
+                        i2++;
+                        if (joinPoint.Join != null)
+                        {
+                            continue;
+                        }
+
+                        if (joinPoint.Point.X > maxX)
+                        {
+                            joinPoint = null;
+                            break;
+                        }
+
+                        var distance = Math.Sqrt(Math.Pow(joinPoint.Point.X - currentPoint.Point.X, 2) + Math.Pow(joinPoint.Point.Y - currentPoint.Point.Y, 2));
+                        if (distance < eps)
+                        {
+                            break;
+                        }
+                    }
+
+                    // join the two points together
+                    if (joinPoint != null)
+                    {
+                        currentPoint.Join = joinPoint;
+                        joinPoint.Join = currentPoint;
                     }
                 }
 
-                if ((segment1 == null && segment2 == null) || segmentCount == 0)
+                // go through the points again, this time we follow the joined point chains to obtain the contours
+                foreach (var segmentPoint in points)
                 {
-                    if (contourPointsCount > 0 && firstSegment != null)
+                    if (segmentPoint.Processed)
                     {
-                        this.contours.Add(new Contour(contourPoints, firstSegment.ContourLevel));
-                        contourPoints = new List<DataPoint>();
-                        contourPointsCount = 0;
+                        continue;
                     }
 
-                    if (segmentCount > 0)
+                    var currentPoint = segmentPoint;
+
+                    // search for the beginning of the contour (or use the entry point if the contour is closed)
+                    while (currentPoint.Join != null)
                     {
-                        firstSegment = this.segments.First();
-                        contourPoints.Add(firstSegment.StartPoint);
-                        contourPoints.Add(firstSegment.EndPoint);
-                        contourPointsCount += 2;
-                        this.segments.Remove(firstSegment);
-                        segmentCount--;
+                        currentPoint = currentPoint.Join.Partner;
+                        if (currentPoint == segmentPoint)
+                        {
+                            break;
+                        }
                     }
+
+                    var dataPoints = new List<DataPoint> { currentPoint.Point, currentPoint.Partner.Point };
+                    currentPoint.Processed = true;
+                    currentPoint = currentPoint.Partner;
+                    currentPoint.Processed = true;
+
+                    // follow the chain of joined points and add their coordinates until we find the last point of the contour (or complete a rotation)
+                    while (currentPoint.Join != null)
+                    {
+                        currentPoint = currentPoint.Join;
+                        if (currentPoint.Processed)
+                        {
+                            break;
+                        }
+
+                        currentPoint.Processed = true;
+                        currentPoint = currentPoint.Partner;
+                        currentPoint.Processed = true;
+                        dataPoints.Add(currentPoint.Point);
+                    }
+
+                    var contour = new Contour(dataPoints, level);
+                    this.contours.Add(contour);
                 }
             }
         }
@@ -583,7 +636,43 @@ namespace OxyPlot.Series
                                new ScreenPoint(x + (size.Width * ux) + (size.Height * vx), y + (size.Width * uy) + (size.Height * vy)),
                                new ScreenPoint(x - (size.Width * ux) + (size.Height * vx), y - (size.Width * uy) + (size.Height * vy))
                            };
-            rc.DrawPolygon(bpts, this.LabelBackground, OxyColors.Undefined);
+            rc.DrawPolygon(bpts, this.LabelBackground, OxyColors.Undefined, 0, this.EdgeRenderingMode);
+        }
+
+
+        /// <summary>
+        /// Represents one of the two points of a segment.
+        /// </summary>
+        private class SegmentPoint
+        {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="SegmentPoint" /> class.
+            /// </summary>
+            /// <param name="point">The segment point.</param>
+            public SegmentPoint(DataPoint point)
+            {
+                this.Point = point;
+            }
+
+            /// <summary>
+            /// Gets or sets a value indicating whether this <see cref="SegmentPoint"/> already was added to a <see cref="Contour"/>.
+            /// </summary>
+            public bool Processed { get; set; }
+
+            /// <summary>
+            /// Gets or sets the partner point. This point and its partner together define a segment.
+            /// </summary>
+            public SegmentPoint Partner { get; set; }
+
+            /// <summary>
+            /// Gets or sets the join point. This is a point from another segment with the same coordinates as this point (within eps).
+            /// </summary>
+            public SegmentPoint Join { get; set; }
+
+            /// <summary>
+            /// Gets the data point.
+            /// </summary>
+            public DataPoint Point { get; }
         }
 
         /// <summary>

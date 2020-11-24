@@ -7,9 +7,9 @@
 namespace LegendsDemo
 {
     using System;
-
     using OxyPlot;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     using PropertyTools.DataAnnotations;
     using WpfExamples;
@@ -152,7 +152,11 @@ namespace LegendsDemo
         {
             var newModel = new PlotModel
             {
-                Title = "LineSeries",
+                Title = "LineSeries"
+            };
+
+            var l = new Legend
+            {
                 LegendBorder = OxyColors.Black,
                 LegendBackground = OxyColor.FromAColor(200, OxyColors.White),
                 LegendPosition = this.LegendPosition,
@@ -164,6 +168,8 @@ namespace LegendsDemo
                 LegendMaxWidth = this.LegendMaxWidth,
                 LegendMaxHeight = this.LegendMaxHeight
             };
+
+            newModel.Legends.Add(l);
 
             for (int i = 1; i <= n; i++)
             {

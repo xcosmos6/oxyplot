@@ -16,10 +16,174 @@ namespace ExampleLibrary
     using OxyPlot.Annotations;
     using OxyPlot.Axes;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
+    using System.Reflection;
+    using System.Linq;
 
     [Examples("Z1 Issues")]
     public class Issues
     {
+        [Example("#1095: Issue 1095 Part 1")]
+        public static PlotModel IssueHalfPolarReversedAxesPart1()
+        {
+            var plotModel = new PlotModel { Title = "", };
+            plotModel.PlotType = OxyPlot.PlotType.Polar;
+            plotModel.Axes.Add(
+                new AngleAxis()
+                {
+                    MajorGridlineStyle = LineStyle.Solid,
+                    MinorGridlineStyle = LineStyle.Dot,
+                    MajorStep = 30,
+                    MinorStep = 10,
+                    CropGridlines = false,
+                    StartAngle = 270 + 360,
+                    EndAngle = 270,
+                    Minimum = -180,
+                    Maximum = +180,
+                    LabelFormatter = (d) => d.ToString("F0")
+                });
+            plotModel.Axes.Add(
+                new MagnitudeAxis()
+                {
+                    MajorGridlineStyle = LineStyle.Solid,
+                    MinorGridlineStyle = LineStyle.Solid,
+                });
+
+            return plotModel;
+        }
+
+        [Example("#1095: Issue 1095 Part 2")]
+        public static PlotModel IssueHalfPolarReversedAxesPart2()
+        {
+            var plotModel = new PlotModel { Title = "", };
+            plotModel.PlotType = OxyPlot.PlotType.Polar;
+            plotModel.Axes.Add(
+                new AngleAxis()
+                {
+                    MajorGridlineStyle = LineStyle.Solid,
+                    MinorGridlineStyle = LineStyle.Dot,
+                    MajorStep = 30,
+                    MinorStep = 10,
+                    CropGridlines = false,
+                    StartAngle = 180,
+                    EndAngle = 0,
+                    Minimum = -90,
+                    Maximum = +90,
+                    LabelFormatter = (d) => d.ToString("F0")
+                });
+            plotModel.Axes.Add(
+                new MagnitudeAxis()
+                {
+                    MajorGridlineStyle = LineStyle.Solid,
+                    MinorGridlineStyle = LineStyle.Solid,
+                });
+
+            return plotModel;
+        }
+
+        [Example("#91 AxisTitleDistance")]
+        public static PlotModel AxisTitleDistance()
+        {
+            var plotModel = new PlotModel
+            {
+                Title = "AxisTitleDistance"
+            };
+
+            var l = new Legend
+            {
+                LegendFontSize = 12,
+                LegendFontWeight = FontWeights.Bold
+            };
+
+            plotModel.Legends.Add(l);
+
+            //var series = new LineSeries() { Title = "Push-Over Curve" };
+            //series.Points.AddRange(pushOverPoints);
+            //plotModel.Series.Add(series);
+
+            plotModel.Axes.Add(new LinearAxis
+            {
+                Title = "Base Shear",
+                Unit = "KN",
+                TitleFontSize = 12,
+                TitleFontWeight = FontWeights.Bold,
+                Position = AxisPosition.Left,
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Solid,
+                AxisTitleDistance = 15
+            });
+            plotModel.Axes.Add(new LinearAxis
+            {
+                Title = "Displacement",
+                Unit = "mm",
+                TitleFontSize = 12,
+                TitleFontWeight = FontWeights.Bold,
+                Position = AxisPosition.Bottom,
+                MajorGridlineStyle = LineStyle.Solid,
+                MinorGridlineStyle = LineStyle.Solid,
+                AxisTitleDistance = 10
+            });
+            return plotModel;
+        }
+
+        [Example("#1044 MinimumSegmentLength not working with AreaSeries")]
+        public static PlotModel MinimumSegmentLengthInAreaSeries()
+        {
+            var model = new PlotModel() { Title = "MinimumSegmentLength in AreaSeries", Subtitle = "Three different areas should be visible" };
+            for (var msl = 0; msl <= 200; msl += 100)
+            {
+                var series = new AreaSeries
+                {
+                    Title = $"MinimumSegmentLength = {msl}",
+                    MinimumSegmentLength = msl
+                };
+
+                for (int i = 0; i < 1000; i++)
+                {
+                    series.Points.Add(new DataPoint(i, Math.Sin(i * 0.01) + 1));
+                    series.Points2.Add(new DataPoint(i, Math.Sin(i * 0.01)));
+                }
+
+                model.Series.Add(series);
+            }
+
+            return model;
+        }
+
+        [Example("#1044 MinimumSegmentLength not working with LinesSeries")]
+        public static PlotModel MinimumSegmentLengthInLineSeries()
+        {
+            var model = new PlotModel() { Title = "MinimumSegmentLength in LineSeries", Subtitle = "Three different curves should be visible" };
+            for (var msl = 0; msl <= 200; msl += 100)
+            {
+                var series = new LineSeries
+                {
+                    Title = $"MinimumSegmentLength = {msl}",
+                    MinimumSegmentLength = msl
+                };
+
+                for (int i = 0; i < 1000; i++)
+                {
+                    series.Points.Add(new DataPoint(i, Math.Sin(i * 0.01)));
+                }
+
+                model.Series.Add(series);
+            }
+
+            return model;
+        }
+
+        [Example("#1303 Problem with infinity size polyline")]
+        public static PlotModel InfinitySizePolyline()
+        {
+            var model = new PlotModel();
+            var series = new OxyPlot.Series.LineSeries();
+            series.Points.Add(new DataPoint(0, 0));
+            series.Points.Add(new DataPoint(1, -1e40));
+            model.Series.Add(series);
+            return model;
+        }
+
         [Example("#977 RectangleAnnotation Axis Clipping not configurable")]
         public static PlotModel RectangleAnnotationAxisClipping()
         {
@@ -291,14 +455,21 @@ namespace ExampleLibrary
         {
             var plotModel1 = new PlotModel
             {
-                LegendBackground = OxyColor.FromArgb(200, 255, 255, 255),
-                LegendBorder = OxyColors.Black,
-                LegendPlacement = LegendPlacement.Outside,
                 PlotAreaBackground = OxyColors.Gray,
                 PlotAreaBorderColor = OxyColors.Gainsboro,
                 PlotAreaBorderThickness = new OxyThickness(2),
                 Title = "Value / Time"
             };
+
+            var l = new Legend
+            {
+                LegendBackground = OxyColor.FromArgb(200, 255, 255, 255),
+                LegendBorder = OxyColors.Black,
+                LegendPlacement = LegendPlacement.Outside
+            };
+
+            plotModel1.Legends.Add(l);
+
             var linearAxis1 = new LinearAxis
             {
                 AbsoluteMaximum = 45,
@@ -476,9 +647,15 @@ namespace ExampleLibrary
         public static PlotModel LegendItemAlignmentCenter()
         {
             var plotModel1 = new PlotModel { Title = "LegendItemAlignment = Center" };
-            plotModel1.LegendItemAlignment = HorizontalAlignment.Center;
-            plotModel1.LegendBorder = OxyColors.Black;
-            plotModel1.LegendBorderThickness = 1;
+            var l = new Legend
+            {
+                LegendItemAlignment = HorizontalAlignment.Center,
+                LegendBorder = OxyColors.Black,
+                LegendBorderThickness = 1
+            };
+
+            plotModel1.Legends.Add(l);
+
             plotModel1.Series.Add(new FunctionSeries(x => Math.Sin(x) / x, 0, 10, 100, "sin(x)/x"));
             plotModel1.Series.Add(new FunctionSeries(Math.Cos, 0, 10, 100, "cos(x)"));
             return plotModel1;
@@ -662,11 +839,18 @@ namespace ExampleLibrary
                 Padding = new OxyThickness(0),
                 PlotAreaBorderThickness = new OxyThickness(1, 1, 1, 1),
                 PlotAreaBorderColor = OxyColors.Black,
-                TextColor = OxyColors.Black,
+                TextColor = OxyColors.Black
+            };
+
+            var l = new Legend
+            {
                 LegendOrientation = LegendOrientation.Horizontal,
                 LegendPosition = LegendPosition.TopRight,
                 LegendMargin = 0
             };
+
+            plotModel1.Legends.Add(l);
+
             plotModel1.Axes.Add(new LinearAxis
             {
                 IsAxisVisible = true,
@@ -822,9 +1006,14 @@ namespace ExampleLibrary
             plotModel.Series.Add(new LineSeries { Title = "LineSeries 2" });
             plotModel.Series.Add(new LineSeries { Title = "LineSeries 3" });
             plotModel.IsLegendVisible = true;
-            plotModel.LegendPlacement = LegendPlacement.Inside;
-            plotModel.LegendPosition = LegendPosition.RightMiddle;
-            plotModel.LegendOrientation = LegendOrientation.Vertical;
+            var l = new Legend
+            {
+                LegendPlacement = LegendPlacement.Inside,
+                LegendPosition = LegendPosition.RightMiddle,
+                LegendOrientation = LegendOrientation.Vertical
+            };
+
+            plotModel.Legends.Add(l);
             return plotModel;
         }
 
@@ -866,63 +1055,6 @@ namespace ExampleLibrary
             var plotModel1 = new PlotModel { Title = "Plot margins not adjusted correctly when Angle = 90", Subtitle = "The numbers should not be clipped" };
             plotModel1.Axes.Add(new DateTimeAxis { Position = AxisPosition.Bottom, Angle = 90 });
             plotModel1.Axes.Add(new DateTimeAxis { Position = AxisPosition.Left, Angle = 90 });
-            return plotModel1;
-        }
-
-        [Example("#301: Wrong label placement for category axis when Angle = 45 (closed)")]
-        public static PlotModel LabelPlacementCategoryAxisWhenAxisAngleIs45()
-        {
-            var plotModel1 = new PlotModel { Title = "Wrong label placement for category axis when Angle = 45", Subtitle = "The labels should not be clipped. Click on text annotation to change the angle." };
-
-            Action<AxisPosition> createAxis = (AxisPosition position) =>
-            {
-                var categoryAxis = new CategoryAxis() { Position = position, Angle = 45 };
-
-                categoryAxis.Labels.Add("Very looooong and big label");
-                categoryAxis.Labels.Add("Very looooong and big label");
-                categoryAxis.Labels.Add("Very looooong and big label");
-                categoryAxis.Labels.Add("Very looooong and big label");
-                plotModel1.Axes.Add(categoryAxis);
-            };
-
-            createAxis(AxisPosition.Bottom);
-            createAxis(AxisPosition.Left);
-            createAxis(AxisPosition.Right);
-            createAxis(AxisPosition.Top);
-
-            var textAnnotation = new TextAnnotation() { Text = "Hold mouse button here to increase angle", TextPosition = new DataPoint(0, 6), TextHorizontalAlignment = HorizontalAlignment.Left, TextVerticalAlignment = VerticalAlignment.Top };
-            plotModel1.Annotations.Add(textAnnotation);
-
-            var abort = new ManualResetEvent(false);
-
-            Action action = () =>
-            {
-                do
-                {
-                    // Angles are the same for all axes.
-                    double angle = 0;
-
-                    foreach (var axis in plotModel1.Axes)
-                    {
-                        angle = (axis.Angle + 181) % 360 - 180;
-                        axis.Angle = angle;
-                    }
-
-                    plotModel1.Subtitle = string.Format("Current angle is {0}", angle);
-                    plotModel1.InvalidatePlot(false);
-                }
-                while (!abort.WaitOne(50));
-            };
-
-            textAnnotation.MouseDown += (o, e) => { abort.Reset(); Task.Factory.StartNew(action); };
-            plotModel1.MouseUp += (o, e) => { abort.Set(); };
-
-            var columnSeries = new ColumnSeries();
-            columnSeries.Items.Add(new ColumnItem(5));
-            columnSeries.Items.Add(new ColumnItem(3));
-            columnSeries.Items.Add(new ColumnItem(7));
-            columnSeries.Items.Add(new ColumnItem(2));
-            plotModel1.Series.Add(columnSeries);
             return plotModel1;
         }
 
@@ -994,10 +1126,17 @@ namespace ExampleLibrary
         {
             var plotModel1 = new PlotModel
             {
-                Title = "Center aligned legends",
+                Title = "Center aligned legends"
+            };
+
+            var l = new Legend
+            {
                 LegendPosition = LegendPosition.BottomCenter,
                 LegendItemAlignment = HorizontalAlignment.Center
             };
+
+            plotModel1.Legends.Add(l);
+
             plotModel1.Series.Add(new LineSeries { Title = "LineSeries 1" });
             plotModel1.Series.Add(new LineSeries { Title = "LS2" });
             return plotModel1;
@@ -1029,7 +1168,13 @@ namespace ExampleLibrary
             custom.Points.Add(new DataPoint(100, 2));
             plotModel1.Series.Add(solid);
             plotModel1.Series.Add(custom);
-            plotModel1.LegendSymbolLength = 100; // wide enough to see pattern
+
+            var l = new Legend
+            {
+                LegendSymbolLength = 100 // wide enough to see pattern
+            };
+
+            plotModel1.Legends.Add(l);
             return plotModel1;
         }
 
@@ -1142,30 +1287,6 @@ namespace ExampleLibrary
             axis.Labels.Add("Short label");
             plotModel1.Axes.Add(axis);
             plotModel1.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom });
-            return plotModel1;
-        }
-
-        [Example("#402: ColumnSeries with dates")]
-        public static PlotModel ColumnSeriesWithDates()
-        {
-            var plotModel1 = new PlotModel
-            {
-                Title = "ColumnSeries with dates",
-                Culture = CultureInfo.InvariantCulture
-            };
-            var data = new[]
-            {
-                new TimeValue { Time = new DateTime(2015, 1, 1), Value = 700 },
-                new TimeValue { Time = new DateTime(2015, 1, 2), Value = 710 },
-                new TimeValue { Time = new DateTime(2015, 1, 3), Value = 580},
-                new TimeValue { Time = new DateTime(2015, 1, 4), Value = 710 },
-                new TimeValue { Time = new DateTime(2015, 1, 5), Value = 715 },
-                new TimeValue { Time = new DateTime(2015, 1, 6), Value = 580 },
-            };
-
-            plotModel1.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = 1000 });
-            plotModel1.Axes.Add(new CategoryAxis { ItemsSource = data, LabelField = "Time", StringFormat = "ddd" });
-            plotModel1.Series.Add(new ColumnSeries { ItemsSource = data, ValueField = "Value" });
             return plotModel1;
         }
 
@@ -1419,41 +1540,6 @@ namespace ExampleLibrary
             return model;
         }
 
-        [Example("#635: PositionAtZeroCrossing Forces Value Axis Label")]
-        public static PlotModel PositionAtZeroCrossingForcesValueAxisLabel()
-        {
-            var plotModel = new PlotModel
-            {
-                Title = "PositionAtZeroCrossing Forces Value Axis Label",
-            };
-
-            var categoryAxis = new CategoryAxis
-            {
-                Position = AxisPosition.Bottom,
-                AxislineStyle = LineStyle.Solid,
-                PositionAtZeroCrossing = true
-            };
-            var valueAxis = new LinearAxis
-            {
-                Position = AxisPosition.Left,
-                MinimumPadding = 0,
-                Minimum = -14,
-                Maximum = 14,
-                IsAxisVisible = false
-            };
-            plotModel.Axes.Add(categoryAxis);
-            plotModel.Axes.Add(valueAxis);
-            var series = new ColumnSeries();
-            series.Items.Add(new ColumnItem { Value = 3 });
-            series.Items.Add(new ColumnItem { Value = 14 });
-            series.Items.Add(new ColumnItem { Value = 11 });
-            series.Items.Add(new ColumnItem { Value = 12 });
-            series.Items.Add(new ColumnItem { Value = 7 });
-            plotModel.Series.Add(series);
-
-            return plotModel;
-        }
-
         [Example("#550: MinimumRange with Minimum")]
         public static PlotModel MinimumRangeWithMinimum()
         {
@@ -1641,14 +1727,6 @@ namespace ExampleLibrary
             return plotModel1;
         }
 
-        [Example("#453: Auto plot margin and width of labels")]
-        public static PlotModel AutoPlotMarginAndAxisLabelWidths()
-        {
-            var plotModel1 = new PlotModel { Title = "Auto plot margin not taking width of axis tick labels into account" };
-            plotModel1.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = -1e8, Maximum = 1e8 });
-            return plotModel1;
-        }
-
         /// <summary>
         /// Creates a demo PlotModel with MinimumRange defined
         /// and with series with values which are within this range.
@@ -1681,7 +1759,13 @@ namespace ExampleLibrary
         [Example("#72: Smooth")]
         public static PlotModel Smooth()
         {
-            var model = new PlotModel { Title = "LineSeries with Smooth = true (zoomed in)", LegendSymbolLength = 24 };
+            var model = new PlotModel { Title = "LineSeries with Smooth = true (zoomed in)" };
+            var l = new Legend
+            {
+                LegendSymbolLength = 24 
+            };
+
+            model.Legends.Add(l);
 
             var s1 = new LineSeries { InterpolationAlgorithm = InterpolationAlgorithms.CanonicalSpline };
             s1.Points.Add(new DataPoint(0, 0));
@@ -1705,9 +1789,15 @@ namespace ExampleLibrary
             var model = new PlotModel
             {
                 Title = "Too much padding with legend outside",
-                LegendPlacement = LegendPlacement.Outside,
                 Padding = new OxyThickness(500)
             };
+
+            var l = new Legend
+            {
+                LegendPlacement = LegendPlacement.Outside
+            };
+
+            model.Legends.Add(l);
             model.Series.Add(new LineSeries { Title = "Series 1" });
             model.Series.Add(new LineSeries { Title = "Series 2" });
             return model;
@@ -1945,7 +2035,7 @@ namespace ExampleLibrary
         [Example("#1312: Annotations ignore LineStyle.None and draw as if Solid")]
         public static PlotModel DrawArrowAnnotationsWithDifferentLineStyles()
         {
-            LineStyle[] lineStyles = new []
+            LineStyle[] lineStyles = new[]
             {
                 LineStyle.Solid,
                 LineStyle.Dash,
@@ -1963,32 +2053,459 @@ namespace ExampleLibrary
             var plot = new PlotModel() { Title = "Annotation Line Styles", Subtitle = "'None' should produce nothing" };
             plot.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = lineStyles.Length * 10 + 10 });
             plot.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = 100 });
-            
+
             double y = 10;
             foreach (var lineStyle in lineStyles)
             {
                 plot.Annotations.Add(new LineAnnotation()
-                    {
-                        LineStyle = lineStyle,
-                        Type = LineAnnotationType.Horizontal,
-                        Y = y,
-                        MinimumX = 10,
-                        MaximumX = 45
-                    });
-                
+                {
+                    LineStyle = lineStyle,
+                    Type = LineAnnotationType.Horizontal,
+                    Y = y,
+                    MinimumX = 10,
+                    MaximumX = 45
+                });
+
                 plot.Annotations.Add(new ArrowAnnotation()
-                    {
-                        LineStyle = lineStyle,
-                        Text = lineStyle.ToString(),
-                        TextHorizontalAlignment = HorizontalAlignment.Center,
-                        TextVerticalAlignment = VerticalAlignment.Bottom,
-                        TextPosition = new DataPoint(50, y),
-                        StartPoint = new DataPoint(55, y),
-                        EndPoint = new DataPoint(90, y)
-                    });
+                {
+                    LineStyle = lineStyle,
+                    Text = lineStyle.ToString(),
+                    TextHorizontalAlignment = HorizontalAlignment.Center,
+                    TextVerticalAlignment = VerticalAlignment.Bottom,
+                    TextPosition = new DataPoint(50, y),
+                    StartPoint = new DataPoint(55, y),
+                    EndPoint = new DataPoint(90, y)
+                });
 
                 y += 10;
             }
+
+            return plot;
+        }
+
+        [Example("#1385: GraphicsRenderContext sometimes clips last line of text")]
+        public static PlotModel DrawMultilineText()
+        {
+            var plot = new PlotModel() { Title = "GraphicsRenderContext\nsometimes clips last\nline of text" };
+            plot.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = 100 });
+            plot.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = 100 });
+
+            double y = 0.0;
+            for (int i = 2; i < 50; i++)
+            {
+                plot.Annotations.Add(new TextAnnotation() { Text = "GraphicsRenderContext\nsometimes clips last\nline of text", TextPosition = new DataPoint(50, y += i), FontSize = i });
+            }
+
+            return plot;
+        }
+
+        [Example("#1441: Zero crossing quadrant axes disappear on zoom and pan (Closed)")]
+        public static PlotModel ZeroCrossingQuadrantAxes()
+        {
+            var plot = new PlotModel() { Title = "Zoom or Pan axes to make them disappear" };
+
+            var xaxis = new LinearAxis
+            {
+                Position = AxisPosition.Top,
+                PositionTier = 0,
+                AxislineStyle = LineStyle.Solid,
+                Minimum = 0,
+                AxislineColor = OxyColors.Red,
+                StartPosition = 0.5,
+                EndPosition = 1,
+                PositionAtZeroCrossing = true,
+                AbsoluteMinimum = 0,
+                Title = "ABC",
+
+            };
+            plot.Axes.Add(xaxis);
+
+            var xaxis2 = new LinearAxis
+            {
+                Position = AxisPosition.Top,
+                PositionTier = 0,
+                AxislineStyle = LineStyle.Solid,
+                Minimum = 0,
+                AxislineColor = OxyColors.Gold,
+                StartPosition = 0.5,
+                EndPosition = 0,
+                PositionAtZeroCrossing = true,
+                IsAxisVisible = true,
+                AbsoluteMinimum = 0,
+                Title = "DCS",
+
+            };
+            plot.Axes.Add(xaxis2);
+
+            var yaxis = new LinearAxis
+            {
+                Position = AxisPosition.Left,
+                AxislineStyle = LineStyle.Solid,
+                Minimum = 0,
+                AxislineColor = OxyColors.Green,
+                PositionTier = 0,
+                StartPosition = 0.5,
+                EndPosition = 1,
+                PositionAtZeroCrossing = true,
+                AbsoluteMinimum = 0,
+                AbsoluteMaximum = 1000,
+                Title = "DSDC",
+
+            };
+            plot.Axes.Add(yaxis);
+
+            var yaxis2 = new LinearAxis
+            {
+                Position = AxisPosition.Right,
+                AxislineStyle = LineStyle.Solid,
+                Minimum = 0,
+                AxislineColor = OxyColors.Violet,
+                PositionTier = 0,
+                StartPosition = 0.5,
+                EndPosition = 0,
+                PositionAtZeroCrossing = true,
+                AbsoluteMinimum = 0,
+
+            };
+            plot.Axes.Add(yaxis2);
+
+            plot.PlotAreaBorderThickness = new OxyThickness(1, 1, 1, 1);
+
+            return plot;
+        }
+
+        [Example("#1524: HitTracker IndexOutOfRangeException with HeatMapSeries")]
+        public static PlotModel HitTrackerIndexOutOfRangeExceptionWithHeatMapSeries()
+        {
+            List<string> xAxisLabels = new List<string>() { "1", "2", "3", "4", "5", "1", "2", "3", "4", "5" };
+            List<string> yAxisLabels = new List<string>() { "1", "2", "3", "4", "5", "1", "2", "3", "4", "5" };
+
+            var plot = new PlotModel() { Title = "Place the tracker to the far top or right of the series\nwith a small window size." };
+
+            List<OxyColor> jetTransparent = new List<OxyColor>();
+            foreach (var item in OxyPalettes.Jet(1000).Colors)
+            {
+                jetTransparent.Add(OxyColor.FromAColor(220, item));
+            }
+            OxyPalette myPalette = new OxyPalette(jetTransparent);
+
+            plot.PlotAreaBackground = OxyColors.White;
+            plot.DefaultFontSize = 14;
+            //plotModel.DefaultColors = SeriesColors;
+            plot.Padding = new OxyThickness(0);
+            plot.TitlePadding = 0;
+
+
+            plot.Axes.Add(new CategoryAxis
+            {
+                Position = AxisPosition.Bottom,
+                Key = "HorizontalAxis",
+                ItemsSource = xAxisLabels,
+                MajorGridlineColor = OxyColors.Black,
+                MajorGridlineStyle = LineStyle.Solid,
+                IsZoomEnabled = false,
+                IsPanEnabled = false,
+                Angle = -45,
+                FontSize = 14,
+                TitleFontSize = 14,
+                AxisTitleDistance = 0
+            });
+
+            plot.Axes.Add(new CategoryAxis
+            {
+                Position = AxisPosition.Left,
+                Key = "VerticalAxis",
+                ItemsSource = yAxisLabels,
+                MajorGridlineColor = OxyColors.Black,
+                MajorGridlineStyle = LineStyle.Solid,
+                IsZoomEnabled = false,
+                IsPanEnabled = false,
+                FontSize = 14,
+                TitleFontSize = 14
+            });
+
+            // Color axis
+            plot.Axes.Add(new LinearColorAxis()
+            {
+                Palette = myPalette,
+            });
+
+            var rand = new Random();
+            var data = new double[yAxisLabels.Count, xAxisLabels.Count];
+            for (int x = 0; x < xAxisLabels.Count; ++x)
+            {
+                for (int y = 0; y < yAxisLabels.Count; ++y)
+                {
+                    data[y, x] = rand.Next(0, 200) * (0.13876876848794587508758879 * (y + 1));
+                }
+            }
+
+            var heatMapSeries = new HeatMapSeries
+            {
+                X0 = 0,
+                X1 = xAxisLabels.Count - 1,
+                Y0 = 0,
+                Y1 = yAxisLabels.Count - 1,
+                XAxisKey = "HorizontalAxis",
+                YAxisKey = "VerticalAxis",
+                RenderMethod = HeatMapRenderMethod.Bitmap,
+                Interpolate = true,
+                Data = data,
+                TrackerFormatString = "{3}: {4}\n{1}: {2}\n{5}: {6:N1}%",
+            };
+
+            plot.Series.Add(heatMapSeries);
+
+            return plot;
+        }
+
+        [Example("#1545: Some render contexts do not support unix line endings.")]
+        public static PlotModel UnixLineEndings()
+        {
+            var plot = new PlotModel() { Title = "Some render contexts\r\ndo not support\nunix line endings." };
+            plot.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = 100 });
+            plot.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = 100 });
+
+            plot.Annotations.Add(new TextAnnotation() { Text = "CRLF\r\nLine\r\nEndings", TextPosition = new DataPoint(16, 50), FontSize = 12 });
+            plot.Annotations.Add(new TextAnnotation() { Text = "LF\nLine\nEndings", TextPosition = new DataPoint(50, 50), FontSize = 12 });
+            plot.Annotations.Add(new TextAnnotation() { Text = "Mixed\r\nLine\nEndings", TextPosition = new DataPoint(84, 50), FontSize = 12 });
+
+            return plot;
+        }
+
+        [Example("#1481: Emoji text.")]
+        public static PlotModel EmojiText()
+        {
+            var plot = new PlotModel() { Title = "🖊 Emoji plot 📈" };
+            plot.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = 100 });
+            plot.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = 100 });
+
+            plot.Annotations.Add(new TextAnnotation() { Text = "0 ❗ 1 📊 2 ❗ 3 📊 4 ❗ 5 📊 6 ❗ 7 📊 8 ❗ 9 📊", TextPosition = new DataPoint(50, 80), FontSize = 12 });
+            plot.Annotations.Add(new TextAnnotation() { Text = "0 ❗ 1 📊 2 ❗ 3 📊 4 ❗ 5 📊 6 ❗ 7 📊 8 ❗ 9 📊", TextPosition = new DataPoint(50, 50), FontSize = 12, TextRotation = 45 });
+
+            return plot;
+        }
+
+        [Example("#1512: FindWindowStartIndex.")]
+        public static PlotModel FindWindowsStartIndex()
+        {
+            var plotModel1 = new PlotModel { Title = "AreaSeries broken in time" };
+            var axis = new LinearAxis {Position = AxisPosition.Left, MinimumPadding = 0, MaximumPadding = 0.06, AbsoluteMinimum = 0};
+            var xAxis = new LinearAxis() {Position = AxisPosition.Bottom, Minimum = 4};
+            
+            plotModel1.Axes.Add(axis);
+            plotModel1.Axes.Add(xAxis);
+
+            var N = 15;
+            var random = new Random(6);
+            var currentValue = random.NextDouble() - 0.5;
+            var areaSeries = new AreaSeries();
+            for (int i = 0; i < N; ++i)
+            {
+                if (random.Next(4) == 0)
+                {
+                    areaSeries.Points.Add(DataPoint.Undefined);
+                    areaSeries.Points2.Add(DataPoint.Undefined);
+                }
+                    
+                currentValue += random.NextDouble();
+                areaSeries.Points.Add(new DataPoint(currentValue, currentValue));
+                areaSeries.Points2.Add(new DataPoint(currentValue, currentValue));
+            }
+            
+            plotModel1.Series.Add(areaSeries);
+          
+
+            return plotModel1;
+        }
+
+        [Example("#1441: Near-border axis line clipping (Closed)")]
+        public static PlotModel ZeroCrossingWithInsertHorizontalAxisAndTransparentBorder()
+        {
+            var plotModel1 = new PlotModel
+            {
+                Title = "PositionAtZeroCrossing = true",
+                Subtitle = "Horizontal axis StartPosition = 0.1 End Position = 0.9",
+                PlotAreaBorderThickness = new OxyThickness(5),
+                PlotAreaBorderColor = OxyColor.FromArgb(127, 127, 127, 127),
+                PlotMargins = new OxyThickness(10, 10, 10, 10)
+            };
+            plotModel1.Axes.Add(new LinearAxis
+            {
+                Minimum = -100,
+                Maximum = 100,
+                PositionAtZeroCrossing = true,
+                AxislineStyle = LineStyle.Solid,
+                TickStyle = TickStyle.Crossing
+            });
+            plotModel1.Axes.Add(new LinearAxis
+            {
+                Minimum = -100,
+                Maximum = 100,
+                Position = AxisPosition.Bottom,
+                PositionAtZeroCrossing = true,
+                AxislineStyle = LineStyle.Solid,
+                TickStyle = TickStyle.Crossing,
+                StartPosition = 0.9,
+                EndPosition = 0.1
+            });
+
+            var scatter = new ScatterSeries();
+            var rnd = new Random(0);
+            for (int i = 0; i < 100; i++)
+            {
+                scatter.Points.Add(new ScatterPoint(rnd.NextDouble() * 100 - 50, rnd.NextDouble() * 100 - 50));
+            }
+            plotModel1.Series.Add(scatter);
+
+            return plotModel1;
+        }
+
+        [Example("#1659: Last line of series titles in legend not displayed in Chinese on WinForms (Closed)")]
+        public static PlotModel LastLineOfSeriesTitlesNotDisplayedInChineseOnWindows()
+        {
+            var plot = new PlotModel() { Title = "#1659: Last line of series titles in legend not displayed in Chinese on WinForms" };
+
+            plot.Legends.Add(new Legend() { LegendTitle = "漂亮的天鹅" });
+            plot.Series.Add(new FunctionSeries(x => x, 0, 1, 0.1, "漂亮的天鹅"));
+            plot.Series.Add(new FunctionSeries(x => x, 0, 1, 0.1, "漂亮的天鹅\n友好的天鹅"));
+            plot.Series.Add(new FunctionSeries(x => x, 0, 1, 0.1, "漂亮的天鹅\n友好的天鹅\n尼斯天鹅"));
+
+            return plot;
+        }
+
+        [Example("#1685: ContourSeries produce fake connections")]
+        public static PlotModel ContourSeriesProduceFakeConnections()
+        {
+            var plot = new PlotModel();
+
+            var data = new double[64, 64];
+            using (var stream = typeof(Issues).GetTypeInfo().Assembly.GetManifestResourceStream("ExampleLibrary.Resources.DodgyContourData.tsv"))
+            {
+                using (var reader = new System.IO.StreamReader(stream))
+                {
+                    for (int r = 0; r < data.GetLength(0); r++)
+                    {
+                        var line = reader.ReadLine();
+                        var row = line.Split('\t');
+
+                        for (int c = 0; c < data.GetLength(0); c++)
+                        {
+                            data[r, c] = double.Parse(row[c]);
+                        }
+                    }
+                }
+            }
+
+            var xs = new double[64];
+            using (var stream = typeof(Issues).GetTypeInfo().Assembly.GetManifestResourceStream("ExampleLibrary.Resources.X.txt"))
+            {
+                using (var reader = new System.IO.StreamReader(stream))
+                {
+                    for (int i = 0; i < xs.Length; i++)
+                    {
+                        var line = reader.ReadLine();
+                        xs[i] = double.Parse(line);
+                    }
+                }
+            }
+
+            var ys = new double[64];
+            using (var stream = typeof(Issues).GetTypeInfo().Assembly.GetManifestResourceStream("ExampleLibrary.Resources.Y.txt"))
+            {
+                using (var reader = new System.IO.StreamReader(stream))
+                {
+                    for (int i = 0; i < ys.Length; i++)
+                    {
+                        var line = reader.ReadLine();
+                        ys[i] = double.Parse(line);
+                    }
+                }
+            }
+
+            double[] contourLevels = { 0.2, 0.4, 0.6, 0.8, 0.9, 1.0 };
+            double maxi = data.Max2D();
+
+            double[] tmp = new double[contourLevels.Length];
+            for (int i = 0; i < contourLevels.Length; i++)
+            {
+                tmp[i] = maxi * contourLevels[i];
+            }
+
+            var xaxis = new LogarithmicAxis() { Position = AxisPosition.Bottom };
+            var yaxis = new LogarithmicAxis() { Position = AxisPosition.Left };
+            var caxis = new LinearColorAxis() { Position = AxisPosition.Right, Palette = OxyPalettes.Gray(100) };
+
+            plot.Axes.Add(xaxis);
+            plot.Axes.Add(yaxis);
+            plot.Axes.Add(caxis);
+
+            var hs = new HeatMapSeries
+            {
+                Data = data,
+                X0 = xs.First(),
+                X1 = xs.Last(),
+                Y0 = ys.First(),
+                Y1 = ys.Last(),
+                CoordinateDefinition = HeatMapCoordinateDefinition.Center,
+            };
+
+            var cs = new ContourSeries
+            {
+                TextColor = OxyColors.Transparent,
+                LabelBackground = OxyColors.Transparent,
+                ContourLevels = tmp,
+                Data = data,
+                ColumnCoordinates = xs,
+                RowCoordinates = ys,
+            };
+
+            plot.Series.Add(hs);
+            plot.Series.Add(cs);
+
+            return plot;
+        }
+
+        [Example("#1716: DateTimeAxis sometimes ignores IntervalLength")]
+        public static PlotModel DateTimeAxisSometimesIgnoresIntervalLength()
+        {
+            var plot = new PlotModel();
+
+            plot.Title = "IntervalLength is ignored for large ranges with IntervalType of Years or Weeks";
+
+            var days = new DateTimeAxis
+            {
+                IntervalType = DateTimeIntervalType.Days,
+                Position = AxisPosition.Bottom,
+                PositionTier = 1,
+                Minimum = DateTimeAxis.ToDouble(new DateTime(2000, 1, 1)),
+                Maximum = DateTimeAxis.ToDouble(new DateTime(2001, 1, 1)),
+                Title = "Days (mostly fine)",
+            };
+
+            var weeks = new DateTimeAxis
+            {
+                IntervalType = DateTimeIntervalType.Weeks,
+                Position = AxisPosition.Bottom,
+                PositionTier = 2,
+                Minimum = DateTimeAxis.ToDouble(new DateTime(2000, 1, 1)),
+                Maximum = DateTimeAxis.ToDouble(new DateTime(2001, 1, 1)),
+                Title = "Weeks (nothing is fine)",
+            };
+
+            var years = new DateTimeAxis
+            {
+                IntervalType = DateTimeIntervalType.Years,
+                Position = AxisPosition.Bottom,
+                PositionTier = 3,
+                Minimum = DateTimeAxis.ToDouble(new DateTime(2000, 1, 1)),
+                Maximum = DateTimeAxis.ToDouble(new DateTime(2100, 1, 1)),
+                Title = "Years (minor ticks not fine)",
+            };
+
+            plot.Axes.Add(days);
+            plot.Axes.Add(weeks);
+            plot.Axes.Add(years);
 
             return plot;
         }

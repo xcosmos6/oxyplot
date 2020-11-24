@@ -148,7 +148,6 @@ namespace OxyPlot.Series
 
             this.VerifyAxes();
 
-            var clippingRect = this.GetClippingRect();
             var dashArray = this.ActualDashArray;
             var verticalLineDashArray = this.VerticalLineStyle.GetDashArray();
             var lineStyle = this.ActualLineStyle;
@@ -176,48 +175,44 @@ namespace OxyPlot.Series
                                 vlpts.Add(lpts[i + 2]);
                             }
 
-                            rc.DrawClippedLineSegments(
-                                clippingRect,
+                            rc.DrawLineSegments(
                                 hlpts,
                                 actualColor,
                                 this.StrokeThickness,
+                                this.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness),
                                 dashArray,
-                                this.LineJoin,
-                                false);
-                            rc.DrawClippedLineSegments(
-                                clippingRect,
+                                this.LineJoin);
+                            rc.DrawLineSegments(
                                 vlpts,
                                 actualColor,
                                 verticalStrokeThickness,
+                                this.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness),
                                 verticalLineDashArray,
-                                this.LineJoin,
-                                false);
+                                this.LineJoin);
                         }
                         else
                         {
-                            rc.DrawClippedLine(
-                                clippingRect,
+                            rc.DrawLine(
                                 lpts,
-                                0,
                                 actualColor,
                                 this.StrokeThickness,
+                                this.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness),
                                 dashArray,
-                                this.LineJoin,
-                                false);
+                                this.LineJoin);
                         }
                     }
 
                     if (this.MarkerType != MarkerType.None)
                     {
                         rc.DrawMarkers(
-                            clippingRect,
                             mpts,
                             this.MarkerType,
                             this.MarkerOutline,
                             new[] { this.MarkerSize },
-                            this.MarkerFill,
+                            this.ActualMarkerFill,
                             this.MarkerStroke,
-                            this.MarkerStrokeThickness);
+                            this.MarkerStrokeThickness,
+                            this.EdgeRenderingMode);
                     }
                 };
 
@@ -241,12 +236,12 @@ namespace OxyPlot.Series
                 if (!double.IsNaN(previousY))
                 {
                     // Horizontal line from the previous point to the current x-coordinate
-                    linePoints.Add(new ScreenPoint(transformedPoint.X, previousY));
+                    linePoints.Add(this.Transform(new DataPoint(point.X, previousY)));
                 }
 
                 linePoints.Add(transformedPoint);
                 markerPoints.Add(transformedPoint);
-                previousY = transformedPoint.Y;
+                previousY = point.Y;
             }
 
             renderPoints(linePoints, markerPoints);
@@ -254,7 +249,7 @@ namespace OxyPlot.Series
             if (this.LabelFormatString != null)
             {
                 // render point labels (not optimized for performance)
-                this.RenderPointLabels(rc, clippingRect);
+                this.RenderPointLabels(rc);
             }
         }
     }

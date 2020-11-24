@@ -11,10 +11,8 @@ namespace OxyPlot.Wpf.Tests
 {
     using System;
     using System.IO;
-
+    using System.Linq;
     using NUnit.Framework;
-
-    using OxyPlot.Tests;
 
     /// <summary>
     /// Provides unit tests for the example library.
@@ -47,28 +45,61 @@ namespace OxyPlot.Wpf.Tests
                 Directory.CreateDirectory(DiffDirectory);
             }
 
-            foreach (var example in ExampleLibrary.Examples.GetList())
+            foreach (var example in ExampleLibrary.Examples.GetListForAutomatedTest())
             {
-                if (example.PlotModel == null)
+                void ExportAndCompareToBaseline(PlotModel model, string fileName)
                 {
-                    continue;
+                    if (model == null)
+                    {
+                        return;
+                    }
+
+                    var baselinePath = Path.Combine(BaselineDirectory, fileName);
+                    var path = Path.Combine(DestinationDirectory, fileName);
+                    var diffpath = Path.Combine(DiffDirectory, fileName);
+
+                    PngExporter.Export(model, path, 800, 500);
+                    if (File.Exists(baselinePath))
+                    {
+                        PngAssert.AreEqual(baselinePath, path, example.Title, diffpath);
+                    }
+                    else
+                    {
+                        File.Copy(path, baselinePath);
+                    }
                 }
 
-                var filename = FileNameUtilities.CreateValidFileName(example.Category + " - " + example.Title, ".png");
-                var baselinePath = Path.Combine(BaselineDirectory, filename);
-                var path = Path.Combine(DestinationDirectory, filename);
-                var diffpath = Path.Combine(DiffDirectory, filename);
-
-                PngExporter.Export(example.PlotModel, path, 800, 500, OxyColors.White);
-                if (File.Exists(baselinePath))
-                {
-                    PngAssert.AreEqual(baselinePath, path, example.Title, diffpath);
-                }
-                else
-                {
-                    File.Copy(path, baselinePath);
-                }
+                ExportAndCompareToBaseline(example.PlotModel, CreateValidFileName($"{example.Category} - {example.Title}", ".png"));
             }
+        }
+
+        /// <summary>
+        /// Creates a valid file name.
+        /// </summary>
+        /// <param name="title">The title.</param>
+        /// <param name="extension">The extension.</param>
+        /// <returns>A file name.</returns>
+        private static string CreateValidFileName(string title, string extension)
+        {
+            string validFileName = title.Trim();
+            var invalidFileNameChars = "/?<>\\:*|\0\t\r\n".ToCharArray();
+            foreach (var invalChar in invalidFileNameChars)
+            {
+                validFileName = validFileName.Replace(invalChar.ToString(), string.Empty);
+            }
+
+            foreach (var invalChar in invalidFileNameChars)
+            {
+                validFileName = validFileName.Replace(invalChar.ToString(), string.Empty);
+            }
+
+            if (validFileName.Length > 160)
+            {
+                // safe value threshold is 260
+                validFileName = validFileName.Remove(156) + "...";
+            }
+
+            return validFileName + extension;
         }
     }
 }

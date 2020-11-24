@@ -146,18 +146,13 @@ namespace OxyPlot.Series
             return null;
         }
 
-        /// <summary>
-        /// Renders the series on the specified rendering context.
-        /// </summary>
-        /// <param name="rc">The rendering context.</param>
+        /// <inheritdoc/>
         public override void Render(IRenderContext rc)
         {
             if (this.Items.Count == 0)
             {
                 return;
             }
-
-            var clippingRect = this.GetClippingRect();
 
             int startIdx = 0;
             double xmax = double.MaxValue;
@@ -167,8 +162,8 @@ namespace OxyPlot.Series
 
             if (this.IsXMonotonic)
             {
-                var xmin = this.XAxis.ActualMinimum;
-                xmax = this.XAxis.ActualMaximum;
+                var xmin = this.XAxis.ClipMinimum;
+                xmax = this.XAxis.ClipMaximum;
                 this.WindowStartIndex = this.UpdateWindowStartIndex(this.Items, rect => rect.X0, xmin, this.WindowStartIndex);
 
                 startIdx = this.WindowStartIndex;
@@ -191,12 +186,12 @@ namespace OxyPlot.Series
                 this.ActualBarRectangles.Add(rectangle);
                 this.ActualItems.Add(item);
 
-                rc.DrawClippedRectangleAsPolygon(
-                    clippingRect,
+                rc.DrawRectangle(
                     rectangle,
                     this.GetSelectableFillColor(item.Color.GetActualColor(this.ActualFillColor)),
                     this.StrokeColor,
-                    this.StrokeThickness);
+                    this.StrokeThickness,
+                    this.EdgeRenderingMode.GetActual(EdgeRenderingMode.PreferSharpness));
 
                 if (this.LabelFormatString != null)
                 {
@@ -213,8 +208,7 @@ namespace OxyPlot.Series
                     var pt = new ScreenPoint(
                         (rectangle.Left + rectangle.Right) / 2, (rectangle.Top + rectangle.Bottom) / 2);
 
-                    rc.DrawClippedText(
-                        clippingRect,
+                    rc.DrawText(
                         pt,
                         s,
                         this.ActualTextColor,
@@ -245,11 +239,12 @@ namespace OxyPlot.Series
             double ymid = (legendBox.Top + legendBox.Bottom) / 2;
             double height = (legendBox.Bottom - legendBox.Top) * 0.8;
             double width = height;
-            rc.DrawRectangleAsPolygon(
+            rc.DrawRectangle(
                 new OxyRect(xmid - (0.5 * width), ymid - (0.5 * height), width, height),
                 this.GetSelectableFillColor(this.ActualFillColor),
                 this.StrokeColor,
-                this.StrokeThickness);
+                this.StrokeThickness,
+                this.EdgeRenderingMode);
         }
 
         /// <summary>

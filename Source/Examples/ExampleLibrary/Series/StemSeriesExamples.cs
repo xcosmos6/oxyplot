@@ -13,6 +13,7 @@ namespace ExampleLibrary
 
     using OxyPlot;
     using OxyPlot.Series;
+    using OxyPlot.Legends;
 
     /// <summary>
     /// Provides examples for the <see cref="StemSeries" />.
@@ -21,6 +22,7 @@ namespace ExampleLibrary
     public static class StemSeriesExamples
     {
         [Example("StemSeries")]
+        [DocumentationExample("Series/StemSeries")]
         public static PlotModel StemSeries()
         {
             return CreateExampleModel(new StemSeries
@@ -29,7 +31,6 @@ namespace ExampleLibrary
                              MarkerType = MarkerType.Circle,
                              MarkerSize = 6,
                              MarkerStroke = OxyColors.White,
-                             MarkerFill = OxyColors.SkyBlue,
                              MarkerStrokeThickness = 1.5
                          });
         }
@@ -41,7 +42,13 @@ namespace ExampleLibrary
         /// <returns>A plot model.</returns>
         private static PlotModel CreateExampleModel(DataPointSeries series)
         {
-            var model = new PlotModel { Title = "StemSeries", LegendSymbolLength = 24 };
+            var model = new PlotModel { Title = "StemSeries" };
+            var l = new Legend
+            {
+                LegendSymbolLength = 24
+            };
+
+            model.Legends.Add(l);
             series.Title = "sin(x)";
             for (double x = 0; x < Math.PI * 2; x += 0.1)
             {

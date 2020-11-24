@@ -14,7 +14,7 @@ namespace OxyPlot.Annotations
     /// <summary>
     /// Provides an abstract base class for annotations that contains text.
     /// </summary>
-    public abstract class TextualAnnotation : Annotation
+    public abstract class TextualAnnotation : TransposableAnnotation
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="TextualAnnotation"/> class.
@@ -63,6 +63,18 @@ namespace OxyPlot.Annotations
         protected ScreenPoint GetActualTextPosition(Func<ScreenPoint> defaultPosition)
         {
             return this.TextPosition.IsDefined() ? this.Transform(this.TextPosition) : defaultPosition();
+        }
+
+        /// <summary>
+        /// Gets the actual text alignment.
+        /// </summary>
+        /// <param name="ha">The horizontal alignment.</param>
+        /// <param name="va">The vertical alignment.</param>
+        protected void GetActualTextAlignment(out HorizontalAlignment ha, out VerticalAlignment va)
+        {
+            ha = this.TextHorizontalAlignment;
+            va = this.TextVerticalAlignment;
+            //this.Orientate(ref ha, ref va);
         }
     }
 }

@@ -21,37 +21,35 @@ namespace OxyPlot.Tests
         [Test]
         public void Export_AllExamplesInExampleLibrary_CheckThatAllFilesExist()
         {
-            const string DestinationDirectory = "PdfExporterTests_ExampleLibrary";
-            if (!Directory.Exists(DestinationDirectory))
+            var destinationDirectory = Path.Combine(TestContext.CurrentContext.WorkDirectory, "PdfExporterTests_ExampleLibrary");
+            if (!Directory.Exists(destinationDirectory))
             {
-                Directory.CreateDirectory(DestinationDirectory);
+                Directory.CreateDirectory(destinationDirectory);
             }
 
             // A4
             const double Width = 297 / 25.4 * 72;
             const double Height = 210 / 25.4 * 72;
 
-            foreach (var example in Examples.GetList())
+            foreach (var example in Examples.GetListForAutomatedTest())
             {
-                if (example.PlotModel == null)
+                void ExportModelAndCheckFileExists(PlotModel model, string fileName)
                 {
-                    continue;
+                    if (model == null)
+                    {
+                        return;
+                    }
+
+                    var path = Path.Combine(destinationDirectory, FileNameUtilities.CreateValidFileName(fileName, ".pdf"));
+                    using (var s = File.Create(path))
+                    {
+                        PdfExporter.Export(model, s, Width, Height);
+                    }
+
+                    Assert.IsTrue(File.Exists(path));
                 }
 
-                var path = Path.Combine(DestinationDirectory, FileNameUtilities.CreateValidFileName(example.Category + " - " + example.Title, ".pdf"));
-                using (var s = File.Create(path))
-                {
-                    try
-                    {
-                        PdfExporter.Export(example.PlotModel, s, Width, Height);
-                    }
-                    catch (Exception ex)
-                    {
-                        Assert.Fail("Exception in " + example.Title + ":" + ex.Message);
-                    }
-                }
-
-                Assert.IsTrue(File.Exists(path));
+                ExportModelAndCheckFileExists(example.PlotModel, $"{example.Category} - {example.Title}");
             }
         }
     }
