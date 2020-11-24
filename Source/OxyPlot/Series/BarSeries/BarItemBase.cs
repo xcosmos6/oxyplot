@@ -34,6 +34,7 @@ namespace OxyPlot.Series
         /// Gets or sets the value of the item.
         /// </summary>
         public double Value { get; set; }
+        public object Tag { get; set; }
 
         /// <summary>
         /// Returns c# code that generates this instance.
