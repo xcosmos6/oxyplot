@@ -7,6 +7,8 @@
 // </summary>
 // --------------------------------------------------------------------------------------------------------------------
 
+#nullable enable
+
 namespace OxyPlot
 {
     using System;
@@ -42,7 +44,7 @@ namespace OxyPlot
         /// <summary>
         /// The indent string.
         /// </summary>
-        private string indentString;
+        private string indentString = string.Empty;
 
         /// <summary>
         /// The current number of indents.
@@ -99,7 +101,7 @@ namespace OxyPlot
         /// <returns>The format code.</returns>
         public static string FormatCode(string format, params object[] values)
         {
-            var encodedValues = new object[values.Length];
+            var encodedValues = new object?[values.Length];
             for (int i = 0; i < values.Length; i++)
             {
                 encodedValues[i] = values[i].ToCode();
@@ -137,18 +139,15 @@ namespace OxyPlot
         private string Add(object obj)
         {
             var type = obj.GetType();
-#if NET40
-            var hasParameterLessCtor = type.GetConstructors().Any(c => c.GetParameters().Length == 0);
-#else
+
             var hasParameterLessCtor = type.GetTypeInfo().DeclaredConstructors.Any(ci => ci.GetParameters().Length == 0);
-#endif
 
             if (!hasParameterLessCtor)
             {
                 return string.Format("/* Cannot generate code for {0} constructor */", type.Name);
             }
 
-            var defaultInstance = Activator.CreateInstance(type);
+            var defaultInstance = Activator.CreateInstance(type)!;
             var varName = this.GetNewVariableName(type);
             this.variables.Add(varName, true);
             this.AppendLine("var {0} = new {1}();", varName, type.Name);
@@ -197,7 +196,7 @@ namespace OxyPlot
         /// <param name="array">The array.</param>
         private void AddArray(string name, Array array)
         {
-            var elementType = array.GetType().GetElementType();
+            var elementType = array.GetType().GetElementType()!;
             if (array.Rank == 1)
             {
                 this.AppendLine("{0} = new {1}[{2}];", name, elementType.Name, array.Length);
@@ -260,7 +259,7 @@ namespace OxyPlot
         /// <param name="list1">The first list.</param>
         /// <param name="list2">The second list.</param>
         /// <returns>True if all items are equal.</returns>
-        private bool AreListsEqual(IList list1, IList list2)
+        private bool AreListsEqual(IList? list1, IList? list2)
         {
             if (list1 == null || list2 == null)
             {
@@ -274,7 +273,7 @@ namespace OxyPlot
 
             for (int i = 0; i < list1.Count; i++)
             {
-                if (!list1[i].Equals(list2[i]))
+                if (!list1[i]!.Equals(list2[i]))
                 {
                     return false;
                 }
@@ -289,7 +288,7 @@ namespace OxyPlot
         /// <typeparam name="T">The type.</typeparam>
         /// <param name="pi">The property info.</param>
         /// <returns>The attribute, or <c>null</c> if no attribute was found.</returns>
-        private T GetFirstAttribute<T>(PropertyInfo pi) where T : Attribute
+        private T? GetFirstAttribute<T>(PropertyInfo pi) where T : Attribute
         {
             return pi.GetCustomAttributes(typeof(CodeGenerationAttribute), true).OfType<T>().FirstOrDefault();
         }
@@ -319,10 +318,7 @@ namespace OxyPlot
         /// <returns>A valid variable name.</returns>
         private string MakeValidVariableName(string title)
         {
-            if (title == null)
-            {
-                return null;
-            }
+            title = title ?? throw new ArgumentNullException(nameof(title));
 
             var regex = new Regex("[a-zA-Z_][a-zA-Z0-9_]*");
             var result = new StringBuilder();
@@ -350,11 +346,7 @@ namespace OxyPlot
             var listsToAdd = new Dictionary<string, IList>();
             var arraysToAdd = new Dictionary<string, Array>();
 
-#if NET40
-            var properties = instanceType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-#else
-            var properties = instanceType.GetRuntimeProperties().Where(pi => pi.GetMethod.IsPublic && !pi.GetMethod.IsStatic);
-#endif
+            var properties = instanceType.GetRuntimeProperties().Where(pi => pi.GetMethod!.IsPublic && !pi.GetMethod.IsStatic);
 
             foreach (var pi in properties)
             {
@@ -366,8 +358,8 @@ namespace OxyPlot
                 }
 
                 string name = varName + "." + pi.Name;
-                object value = pi.GetValue(instance, null);
-                object defaultValue = pi.GetValue(defaultValues, null);
+                object? value = pi.GetValue(instance, null);
+                object? defaultValue = pi.GetValue(defaultValues, null);
 
                 // check if lists are equal
                 if (this.AreListsEqual(value as IList, defaultValue as IList))
@@ -390,20 +382,12 @@ namespace OxyPlot
                     continue;
                 }
 
-#if NET40
-                var setter = pi.GetSetMethod();
-                if (setter == null || !setter.IsPublic)
-                {
-                    continue;
-                }
-#else
                 // only properties with public setters are used
                 var setter = pi.SetMethod;
                 if (setter == null || !setter.IsPublic)
                 {
                     continue;
                 }
-#endif
 
                 // skip default values
                 if ((value != null && value.Equals(defaultValue)) || value == defaultValue)
@@ -435,9 +419,9 @@ namespace OxyPlot
         /// </summary>
         /// <param name="name">The property name.</param>
         /// <param name="value">The value.</param>
-        private void SetProperty(string name, object value)
+        private void SetProperty(string name, object? value)
         {
-            string code = value.ToCode();
+            string? code = value.ToCode();
             if (code != null)
             {
                 this.AppendLine("{0} = {1};", name, code);

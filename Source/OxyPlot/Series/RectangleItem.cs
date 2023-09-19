@@ -23,7 +23,7 @@ namespace OxyPlot.Series
         public static readonly RectangleItem Undefined = new RectangleItem(DataPoint.Undefined, DataPoint.Undefined, double.NaN);
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="RectangleItem" /> struct.
+        /// Initializes a new instance of the <see cref="RectangleItem" /> class.
         /// </summary>
         /// <param name="x1">The x coordinate of the first corner.</param>
         /// <param name="x2">The x coordinate of the diagonally-opposite corner.</param>
@@ -38,7 +38,7 @@ namespace OxyPlot.Series
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="RectangleItem" /> struct.
+        /// Initializes a new instance of the <see cref="RectangleItem" /> class.
         /// </summary>
         /// <param name="a">The first corner.</param>
         /// <param name="b">The diagonally-opposite corner.</param>
@@ -94,7 +94,7 @@ namespace OxyPlot.Series
         /// <returns><c>true</c> if the value of the <paramref name="other" /> parameter is the same as the value of this instance; otherwise, <c>false</c>.</returns>
         public bool Equals(RectangleItem other)
         {
-            return this.A.Equals(other.A) && this.B.Equals(other.B);
+            return this.A.Equals(other.A) && this.B.Equals(other.B) && this.Value.Equals(other.Value);
         }
 
         /// <summary>
@@ -112,14 +112,7 @@ namespace OxyPlot.Series
         /// <returns><c>true</c> if this point is defined; otherwise, <c>false</c>.</returns>
         public bool IsDefined()
         {
-            // check that x and y is not NaN (the code below is faster than double.IsNaN)
-#pragma warning disable 1718
-            // ReSharper disable EqualExpressionComparison
-            // ReSharper disable CompareOfFloatsByEqualityOperator
             return this.A.IsDefined() && this.B.IsDefined() && !double.IsNaN(this.Value);
-            // ReSharper restore CompareOfFloatsByEqualityOperator
-            // ReSharper restore EqualExpressionComparison
-#pragma warning restore 1718
         }
     }
 }

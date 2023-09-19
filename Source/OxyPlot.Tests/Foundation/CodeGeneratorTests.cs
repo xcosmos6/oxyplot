@@ -21,23 +21,39 @@ namespace OxyPlot.Tests
         /// Test that code can be generated for all examples in the example library.
         /// </summary>
         [Test]
-        public void GenerateCodeForAllExamplesInExampleLibrary()
+        [TestCaseSource(typeof(ExampleLibrary.Examples), nameof(ExampleLibrary.Examples.GetListForAutomatedTest))]
+        public void GenerateCodeForAllExamplesInExampleLibrary(ExampleLibrary.ExampleInfo ei)
         {
-            foreach (var ei in ExampleLibrary.Examples.GetListForAutomatedTest())
+            void CheckCode(PlotModel model)
             {
-                void CheckCode(PlotModel model)
+                if (model == null)
                 {
-                    if (model == null)
-                    {
-                        return;
-                    }
-
-                    var code = model.ToCode();
-                    Assert.That(code, Is.Not.Null, ei.Title);
+                    return;
                 }
 
-                CheckCode(ei.PlotModel);
+                var code = model.ToCode();
+                Assert.That(code, Is.Not.Null, ei.Title);
             }
+
+            CheckCode(ei.PlotModel);
+        }
+
+        /// <summary>
+        /// Test that code generation properly handles escapes sequences in strings
+        /// </summary>
+        [Test]
+        public void TestCodeGeneratorStringExtensions()
+        {
+            var plot = new PlotModel();
+
+            // a custom tracker format string that shows x axis values in seconds as "m:ss.ff"
+            var series = new Series.LineSeries()
+            {
+                TrackerFormatString = "{1}: {2:m\\:ss\\.ff}\n{3}: {4:0.##}",
+            };
+            plot.Series.Add(series);
+
+            StringAssert.Contains(@"{1}: {2:m\\:ss\\.ff}\n{3}: {4:0.##}", plot.ToCode());
         }
     }
 }
