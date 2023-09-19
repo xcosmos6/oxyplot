@@ -43,6 +43,9 @@ namespace OxyPlot.Series
             return this.CategoryIndex;
         }
 
+        /// <summary>
+        /// to contain extra information for DCAT column series plot.
+        /// </summary>
         public object Tag { get; set; }
     }
 }
