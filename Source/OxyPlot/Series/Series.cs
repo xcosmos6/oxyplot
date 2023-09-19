@@ -23,6 +23,7 @@ namespace OxyPlot.Series
         protected Series()
         {
             this.IsVisible = true;
+            this.ShowTrackerString = true;
             this.Background = OxyColors.Undefined;
             this.RenderInLegend = true;
         }
@@ -64,6 +65,11 @@ namespace OxyPlot.Series
         /// Gets or sets a value indicating whether the series should be rendered in the legend. The default is <c>true</c>.
         /// </summary>
         public bool RenderInLegend { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the series should be show the tracker string. The default is <c>true</c>.
+        /// </summary>
+        public bool ShowTrackerString { get; set; }
 
         /// <summary>
         /// Gets or sets a format string used for the tracker. The default depends on the series.
